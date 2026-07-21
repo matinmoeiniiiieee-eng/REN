@@ -1,5 +1,9 @@
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# Hypercorn replaces uvicorn: it speaks HTTP/2 (required for the gRPC transport)
+# and HTTP/1.1 + WebSocket on the same port. `h2` is its HTTP/2 backend and
+# `wsproto` (pulled in automatically) handles WebSocket.
+hypercorn==0.16.0
+h2==4.1.0
 httpx==0.25.1
 websockets==12.0
 psutil==5.9.6

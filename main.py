@@ -21,7 +21,6 @@ from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconn
 from fastapi.responses import Response, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-import uvicorn
 import httpx
 import psutil
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +36,12 @@ class Settings(BaseSettings):
     admin_password: str = "admin"
     # Persistence: relative paths are resolved next to this file.
     data_file: str = "data/ren_data.json"
+    # Persistent-volume directory. On Render/Railway the default filesystem is
+    # ephemeral, so redeploys/cold-starts wipe ren_data.json. Point DATA_DIR at
+    # a mounted disk/volume (e.g. /var/data on Render, /data on Railway) and the
+    # state file is stored there instead, surviving restarts. Empty = legacy
+    # behaviour (data_file resolved next to main.py).
+    data_dir: str = ""
     # Security hardening toggles
     allow_private_ranges: bool = False   # if True, the tunnel may reach private/loopback ranges
     login_max_attempts: int = 5
@@ -105,6 +110,16 @@ SOCKET_BUFFER_BYTES = 262144
 # Downstream read buffer bounds (adaptive between these two).
 DOWNSTREAM_MIN_BUF = 16384
 DOWNSTREAM_MAX_BUF = 262144
+
+# ---- gRPC ("gun") transport tuning ------------------------------------------
+# serviceName advertised in gRPC share links is "<prefix>/<uuid>", which maps to
+# the request path "/<prefix>/<uuid>/Tun". Keeping the uuid in the path lets us
+# route per-link (like the WS path) while the VLESS header remains the source of
+# truth for authentication.
+GRPC_SERVICE_PREFIX = (os.environ.get("REN_GRPC_PREFIX", "grpc").strip("/") or "grpc")
+# Cap a single decoded VLESS-header buffer so a malformed stream can't grow it
+# without bound before the header is recognised.
+GRPC_HEADER_MAX = 2048
 
 # ==========================================
 # Password Hashing & Authentication
@@ -179,6 +194,13 @@ def reset_login_attempts(ip: str):
 _persist_lock = asyncio.Lock()
 
 def _data_path() -> str:
+    # A persistent volume (DATA_DIR) always wins: the state file lives inside it
+    # under its basename, so operators only have to mount a disk and set one env
+    # var to get durable storage across Render/Railway restarts.
+    filename = os.path.basename(CONFIG.data_file) or "ren_data.json"
+    data_dir = (CONFIG.data_dir or "").strip()
+    if data_dir:
+        return os.path.join(data_dir, filename)
     p = CONFIG.data_file
     return p if os.path.isabs(p) else os.path.join(BASE_DIR, p)
 
@@ -305,28 +327,54 @@ def ensure_default_link():
 def get_domain() -> str:
     return os.environ.get("RENDER_EXTERNAL_URL", os.environ.get("RAILWAY_PUBLIC_DOMAIN", "localhost")).replace("https://", "").replace("http://", "")
 
-def generate_vless_link(uuid: str, remark: str = "REN", address: str = None) -> str:
+def grpc_service_name(uuid: str) -> str:
+    """serviceName carried in gRPC share links (maps to path /<prefix>/<uuid>)."""
+    return f"{GRPC_SERVICE_PREFIX}/{uuid}"
+
+def generate_vless_link(uuid: str, remark: str = "REN", address: str = None,
+                        transport: str = "ws") -> str:
     domain = CUSTOM_DOMAIN if CUSTOM_DOMAIN else get_domain()
     addr = address if address else domain
-    # WebSocket early-data (0-RTT): the client carries the first chunk (which holds
-    # the VLESS request header) inside the `Sec-WebSocket-Protocol` upgrade header.
-    # This shaves a round-trip AND blends the handshake into ordinary CDN traffic,
-    # which helps under DPI. Clients that don't understand `ed` simply ignore it and
-    # send data as normal frames -> the server handles both paths, so it stays fully
-    # compatible with standard v2rayNG / Nekobox / sing-box configs.
-    path = f"/ws/{uuid}?ed={EARLY_DATA_MAX}"
-    params = {
-        "encryption": "none",
-        "security": "tls",
-        "type": "ws",
-        "headerType": "none",
-        "host": domain,
-        "path": path,
-        "sni": domain,
-        "fp": DEFAULT_FINGERPRINT,
-        "alpn": "http/1.1",
-        "allowInsecure": "0",
-    }
+
+    if transport == "grpc":
+        # gRPC ("gun") transport rides HTTP/2. The client opens a bidirectional
+        # gRPC stream at /<serviceName>/Tun; the VLESS request header travels in
+        # the first Hunk message, exactly like the WS first frame. `alpn=h2` is
+        # required so the TLS/ALPN negotiation selects HTTP/2. Fully compatible
+        # with v2rayNG / sing-box gRPC (gun mode) configs.
+        params = {
+            "encryption": "none",
+            "security": "tls",
+            "type": "grpc",
+            "serviceName": grpc_service_name(uuid),
+            "mode": "gun",
+            "authority": domain,
+            "sni": domain,
+            "fp": DEFAULT_FINGERPRINT,
+            "alpn": "h2",
+            "allowInsecure": "0",
+        }
+    else:
+        # WebSocket early-data (0-RTT): the client carries the first chunk (which
+        # holds the VLESS request header) inside the `Sec-WebSocket-Protocol`
+        # upgrade header. This shaves a round-trip AND blends the handshake into
+        # ordinary CDN traffic, which helps under DPI. Clients that don't
+        # understand `ed` simply ignore it and send data as normal frames -> the
+        # server handles both paths, so it stays fully compatible with standard
+        # v2rayNG / Nekobox / sing-box configs.
+        path = f"/ws/{uuid}?ed={EARLY_DATA_MAX}"
+        params = {
+            "encryption": "none",
+            "security": "tls",
+            "type": "ws",
+            "headerType": "none",
+            "host": domain,
+            "path": path,
+            "sni": domain,
+            "fp": DEFAULT_FINGERPRINT,
+            "alpn": "http/1.1",
+            "allowInsecure": "0",
+        }
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{addr}:443?{query}#{quote(remark)}"
 
@@ -608,7 +656,12 @@ async def create_link(request: Request, _=Depends(require_auth)):
         "active": True, "expiry": expiry, "uuid_bytes": uid_bytes
     }
     await save_state()
-    return {"uuid": uid, "label": label, "vless_link": generate_vless_link(uid, remark=f"REN-{label}")}
+    return {
+        "uuid": uid,
+        "label": label,
+        "vless_link": generate_vless_link(uid, remark=f"REN-{label}"),
+        "vless_link_grpc": generate_vless_link(uid, remark=f"REN-{label}-gRPC", transport="grpc"),
+    }
 
 @api_router.get("/links")
 async def list_links(_=Depends(require_auth)):
@@ -621,7 +674,8 @@ async def list_links(_=Depends(require_auth)):
             "active": data["active"], "expiry": data.get("expiry", ""), "expired": is_expired(data),
             "created_at": data["created_at"], "current_connections": count_connections_for_link(uid),
             "connected_ips": active_ips,
-            "vless_link": generate_vless_link(uid, remark=f"REN-{data['label']}")
+            "vless_link": generate_vless_link(uid, remark=f"REN-{data['label']}"),
+            "vless_link_grpc": generate_vless_link(uid, remark=f"REN-{data['label']}-gRPC", transport="grpc"),
         })
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return {"links": result}
@@ -740,9 +794,15 @@ async def subscription_endpoint(uid: str):
     if not link["active"] or is_expired(link):
         raise HTTPException(status_code=403, detail="link inactive or expired")
 
-    sub_links = [generate_vless_link(uid, remark=f"REN-{link['label']}-Server")]
+    # Offer both transports for the main server and every custom address so
+    # clients can pick whichever survives their network (WS or gRPC/gun).
+    sub_links = [
+        generate_vless_link(uid, remark=f"REN-{link['label']}-WS"),
+        generate_vless_link(uid, remark=f"REN-{link['label']}-gRPC", transport="grpc"),
+    ]
     for i, addr in enumerate(CUSTOM_ADDRESSES):
-        sub_links.append(generate_vless_link(uid, remark=f"REN-{link['label']}-IP{i+1}", address=addr))
+        sub_links.append(generate_vless_link(uid, remark=f"REN-{link['label']}-IP{i+1}-WS", address=addr))
+        sub_links.append(generate_vless_link(uid, remark=f"REN-{link['label']}-IP{i+1}-gRPC", address=addr, transport="grpc"))
 
     sub_content = "\n".join(sub_links)
     encoded = base64.b64encode(sub_content.encode('utf-8')).decode('utf-8')
@@ -837,6 +897,52 @@ async def add_usage(uid: str, n: int):
     if uid in LINKS:
         LINKS[uid]["used_bytes"] += n
 
+# --- Shared transport helpers (reused by both the WS and gRPC tunnels) -------
+def _apply_socket_opts(writer: asyncio.StreamWriter):
+    """Tune an upstream TCP socket: keepalive, no-Nagle, modest buffers."""
+    try:
+        sock = writer.get_extra_info("socket")
+        if sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            # Disable Nagle: tunnelled traffic is already framed, so coalescing
+            # adds latency (esp. for interactive TLS records) with no benefit.
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            # Modest, PaaS-friendly socket buffers for smoother bulk throughput.
+            for opt in (socket.SO_RCVBUF, socket.SO_SNDBUF):
+                try:
+                    sock.setsockopt(socket.SOL_SOCKET, opt, SOCKET_BUFFER_BYTES)
+                except OSError:
+                    pass
+    except Exception:
+        pass
+
+async def open_upstream(address: str, port: int):
+    """Open the destination TCP connection and apply socket tuning.
+
+    Shared by the WebSocket and gRPC engines so both transports get identical
+    connect behaviour, timeouts and socket options.
+    """
+    reader, writer = await asyncio.wait_for(
+        asyncio.open_connection(address, port), timeout=10.0
+    )
+    _apply_socket_opts(writer)
+    return reader, writer
+
+def account_traffic(conn_id: str | None, uid: str, size: int, is_request: bool = False):
+    """Record byte accounting for a transferred chunk (transport-agnostic).
+
+    Consolidates the global stats counters, per-connection byte tally, hourly
+    traffic histogram and per-link usage that the WS and gRPC pumps both need.
+    """
+    stats["total_bytes"] += size
+    if is_request:
+        stats["total_requests"] += 1
+    if conn_id and conn_id in connections:
+        connections[conn_id]["bytes"] += size
+    hourly_traffic[datetime.now().strftime("%Y-%m-%d %H:00")] += size
+    if uid in LINKS:
+        LINKS[uid]["used_bytes"] += size
+
 async def ws_to_tcp(websocket: WebSocket, writer: asyncio.StreamWriter, conn_id: str, link_uid: str):
     try:
         while True:
@@ -851,11 +957,7 @@ async def ws_to_tcp(websocket: WebSocket, writer: asyncio.StreamWriter, conn_id:
                 await websocket.close(code=1008, reason="quota exceeded")
                 break
 
-            stats["total_bytes"] += size
-            stats["total_requests"] += 1
-            connections[conn_id]["bytes"] += size
-            hourly_traffic[datetime.now().strftime("%Y-%m-%d %H:00")] += size
-            await add_usage(link_uid, size)
+            account_traffic(conn_id, link_uid, size, is_request=True)
 
             writer.write(data)
             await writer.drain()
@@ -891,10 +993,7 @@ async def tcp_to_ws(websocket: WebSocket, reader: asyncio.StreamReader, conn_id:
                 await websocket.close(code=1008, reason="quota exceeded")
                 break
 
-            stats["total_bytes"] += size
-            connections[conn_id]["bytes"] += size
-            hourly_traffic[datetime.now().strftime("%Y-%m-%d %H:00")] += size
-            await add_usage(link_uid, size)
+            account_traffic(conn_id, link_uid, size)
 
             await websocket.send_bytes((b"\x00\x00" + data) if first else data)
             first = False
@@ -967,37 +1066,14 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
         connection_sockets[conn_id] = websocket
         ip_ref_count[uuid][client_ip] += 1
 
-        size = len(buffer)
-        stats["total_bytes"] += size
-        stats["total_requests"] += 1
-        connections[conn_id]["bytes"] += size
-        hourly_traffic[datetime.now().strftime("%Y-%m-%d %H:00")] += size
-        await add_usage(uuid, size)
+        account_traffic(conn_id, uuid, len(buffer), is_request=True)
 
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(address, port), timeout=10.0)
-
-        try:
-            sock = writer.get_extra_info('socket')
-            if sock:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                # Disable Nagle: tunnelled traffic is already framed, so coalescing
-                # adds latency (esp. for interactive TLS records) with no benefit.
-                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                # Modest, PaaS-friendly socket buffers for smoother bulk throughput.
-                for opt in (socket.SO_RCVBUF, socket.SO_SNDBUF):
-                    try:
-                        sock.setsockopt(socket.SOL_SOCKET, opt, SOCKET_BUFFER_BYTES)
-                    except OSError:
-                        pass
-        except Exception:
-            pass
+        # Reuse the shared upstream-connect helper (open_connection + socket
+        # tuning) so WS and gRPC behave identically toward the destination.
+        reader, writer = await open_upstream(address, port)
 
         if initial_payload:
-            p_size = len(initial_payload)
-            stats["total_bytes"] += p_size
-            connections[conn_id]["bytes"] += p_size
-            hourly_traffic[datetime.now().strftime("%Y-%m-%d %H:00")] += p_size
-            await add_usage(uuid, p_size)
+            account_traffic(conn_id, uuid, len(initial_payload))
             writer.write(initial_payload)
             await writer.drain()
 
@@ -1029,6 +1105,330 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
                 remove_ip_from_link(info.get("uuid"), info.get("ip"))
 
 # ==========================================
+# gRPC ("gun") Transport Engine
+# ==========================================
+# VLESS-over-gRPC rides HTTP/2. The client opens a bidirectional gRPC stream at
+# /<serviceName>/Tun and sends the VLESS stream wrapped in protobuf `Hunk`
+# messages, each prefixed by the 5-byte gRPC length-prefix framing:
+#
+#   [ 1 byte compression flag ][ 4 byte big-endian length ][ Hunk protobuf ]
+#
+# `Hunk` / `MultiHunk` (Xray "gun" proto) is simply:  bytes data = 1;  so a Hunk
+# is  0x0a <varint len> <payload>. We decode payloads back into the raw VLESS
+# byte stream (reusing parse_vless_header + open_upstream + account_traffic) and
+# re-frame the upstream response the same way on the way out.
+#
+# Implemented as a raw-ASGI app (mounted at /grpc) so we control the HTTP/2
+# response directly. NOTE: hypercorn does not implement the ASGI response
+# trailers extension, so we cannot emit a `grpc-status` trailer; the gun tunnel
+# does not require it (data flows over DATA frames) and the stream is closed
+# with a normal final body event.
+
+def _read_varint(buf, pos: int):
+    result = 0
+    shift = 0
+    n = len(buf)
+    while pos < n:
+        b = buf[pos]
+        pos += 1
+        result |= (b & 0x7F) << shift
+        if not (b & 0x80):
+            return result, pos
+        shift += 7
+    raise ValueError("truncated varint")
+
+def _encode_varint(value: int) -> bytes:
+    out = bytearray()
+    while True:
+        b = value & 0x7F
+        value >>= 7
+        if value:
+            out.append(b | 0x80)
+        else:
+            out.append(b)
+            return bytes(out)
+
+def _decode_hunk(msg: bytes) -> bytes:
+    """Extract the concatenated `data` (field 1) bytes from a Hunk/MultiHunk."""
+    pos = 0
+    n = len(msg)
+    parts = []
+    while pos < n:
+        tag = msg[pos]
+        pos += 1
+        field = tag >> 3
+        wire = tag & 0x07
+        if wire == 2:  # length-delimited
+            length, pos = _read_varint(msg, pos)
+            val = msg[pos:pos + length]
+            pos += length
+            if field == 1:
+                parts.append(val)
+        elif wire == 0:  # varint
+            _, pos = _read_varint(msg, pos)
+        elif wire == 5:  # 32-bit
+            pos += 4
+        elif wire == 1:  # 64-bit
+            pos += 8
+        else:
+            break
+    return b"".join(parts)
+
+def grpc_encode_frame(data: bytes) -> bytes:
+    """Wrap raw stream bytes into a single length-prefixed gRPC Hunk frame."""
+    hunk = b"\x0a" + _encode_varint(len(data)) + data
+    return b"\x00" + len(hunk).to_bytes(4, "big") + hunk
+
+class GrpcFrameDecoder:
+    """Incremental decoder: feed HTTP/2 body chunks, get raw VLESS payloads.
+
+    Handles gRPC length-prefixed messages that span multiple chunks and yields
+    the inner `data` bytes of each Hunk once a full message is buffered.
+    """
+    def __init__(self):
+        self._buf = bytearray()
+
+    def feed(self, chunk: bytes):
+        out = []
+        if chunk:
+            self._buf.extend(chunk)
+        while len(self._buf) >= 5:
+            length = int.from_bytes(self._buf[1:5], "big")
+            if len(self._buf) < 5 + length:
+                break
+            msg = bytes(self._buf[5:5 + length])
+            del self._buf[:5 + length]
+            # Compression flag (self._buf[0] before delete) is ignored: we
+            # advertise identity encoding, so no decompression is required.
+            out.append(_decode_hunk(msg))
+        return out
+
+
+class _GrpcConn:
+    """Handle stored in connection_sockets so close_connections_for_link() can
+    tear a gRPC tunnel down (link deletion) the same way it closes a WebSocket.
+    """
+    def __init__(self):
+        self.closed = asyncio.Event()
+
+    async def close(self, code: int = 1000, reason: str = ""):
+        self.closed.set()
+
+
+def _grpc_client_ip(scope) -> str:
+    for name, value in scope.get("headers", []):
+        if name == b"x-forwarded-for":
+            return value.decode("latin1").split(",")[0].strip()
+    client = scope.get("client")
+    if client:
+        return client[0]
+    return "unknown"
+
+async def _grpc_recv_iter(receive):
+    """Yield request DATA bytes until the client half-closes or disconnects."""
+    while True:
+        event = await receive()
+        et = event["type"]
+        if et == "http.request":
+            body = event.get("body") or b""
+            if body:
+                yield body
+            if not event.get("more_body", False):
+                return
+        elif et == "http.disconnect":
+            return
+
+async def _grpc_send_status(send, status: int):
+    """Send a bodyless HTTP response (used to reject before tunnelling starts)."""
+    try:
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [(b"content-type", b"application/grpc")],
+        })
+        await send({"type": "http.response.body", "body": b"", "more_body": False})
+    except Exception:
+        pass
+
+async def grpc_tunnel_asgi(scope, receive, send):
+    """Raw-ASGI VLESS-over-gRPC tunnel. Mounted at /grpc (path: /<uuid>/Tun)."""
+    if scope["type"] != "http":
+        return
+    if scope.get("method") != "POST":
+        await _grpc_send_status(send, 405)
+        return
+
+    # Mounted under /grpc, so scope["path"] is "/<uuid>/<method>" (method is
+    # typically "Tun"; "TunMulti" is also accepted since our framing is a
+    # superset). The uuid identifies the link, mirroring the WS path.
+    parts = [p for p in scope.get("path", "").split("/") if p]
+    if not parts:
+        await _grpc_send_status(send, 404)
+        return
+    uuid = parts[0]
+
+    writer = None
+    conn_id = None
+    conn_handle = _GrpcConn()
+    client_ip = _grpc_client_ip(scope)
+    started = False
+    try:
+        link_data = LINKS.get(uuid)
+        if not link_data or not link_data["active"] or is_expired(link_data):
+            await _grpc_send_status(send, 404)
+            return
+
+        max_conn = link_data.get("max_connections", 0)
+        if max_conn > 0:
+            already_connected = ip_ref_count.get(uuid, {}).get(client_ip, 0) > 0
+            if not already_connected and count_connections_for_link(uuid) >= max_conn:
+                await _grpc_send_status(send, 429)
+                return
+
+        expected_bytes = link_data.get("uuid_bytes")
+        if not expected_bytes:
+            expected_bytes = uuid_lib.UUID(uuid).bytes
+            link_data["uuid_bytes"] = expected_bytes
+
+        decoder = GrpcFrameDecoder()
+        recv_iter = _grpc_recv_iter(receive)
+
+        # Phase 1: pull Hunk payloads until the VLESS header is complete. The
+        # header is extracted from the first packet exactly like the WS path.
+        buffer = b""
+        command = address = port = initial_payload = None
+        header_ready = False
+        async for chunk in recv_iter:
+            for data in decoder.feed(chunk):
+                buffer += data
+            if buffer:
+                parsed = await parse_vless_header(buffer, expected_bytes)
+                if parsed is not None:
+                    command, address, port, initial_payload = parsed
+                    header_ready = True
+                    break
+                if len(buffer) > GRPC_HEADER_MAX:
+                    raise ValueError("Header overflow")
+        if not header_ready:
+            await _grpc_send_status(send, 400)
+            return
+
+        # SSRF hardening: refuse internal / metadata destinations.
+        if not await destination_allowed(address, port):
+            await _grpc_send_status(send, 403)
+            return
+
+        conn_id = secrets.token_urlsafe(8)
+        connections[conn_id] = {"uuid": uuid, "ip": client_ip,
+                                "connected_at": datetime.now().isoformat(), "bytes": 0}
+        connection_sockets[conn_id] = conn_handle
+        ip_ref_count[uuid][client_ip] += 1
+
+        account_traffic(conn_id, uuid, len(buffer), is_request=True)
+
+        reader, writer = await open_upstream(address, port)
+
+        if initial_payload:
+            account_traffic(conn_id, uuid, len(initial_payload))
+            writer.write(initial_payload)
+            await writer.drain()
+
+        # Begin the gRPC response stream (HTTP/2 200 + application/grpc).
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                (b"content-type", b"application/grpc"),
+                (b"grpc-encoding", b"identity"),
+                (b"grpc-accept-encoding", b"identity"),
+            ],
+        })
+        started = True
+
+        async def grpc_to_tcp():
+            # Uplink: decode remaining Hunk payloads -> upstream socket.
+            try:
+                async for chunk in recv_iter:
+                    for data in decoder.feed(chunk):
+                        if not data:
+                            continue
+                        size = len(data)
+                        if not await check_quota(uuid, size):
+                            return
+                        account_traffic(conn_id, uuid, size, is_request=True)
+                        writer.write(data)
+                        await writer.drain()
+            except Exception:
+                pass
+            finally:
+                try:
+                    writer.write_eof()
+                except Exception:
+                    pass
+
+        async def tcp_to_grpc():
+            # Downlink: upstream socket -> length-prefixed Hunk frames.
+            buf_size = DOWNSTREAM_MIN_BUF
+            try:
+                while True:
+                    data = await asyncio.wait_for(reader.read(buf_size), IDLE_TIMEOUT)
+                    if not data:
+                        break
+                    size = len(data)
+                    if size == buf_size and buf_size < DOWNSTREAM_MAX_BUF:
+                        buf_size = min(DOWNSTREAM_MAX_BUF, buf_size * 2)
+                    elif size < buf_size / 2 and buf_size > DOWNSTREAM_MIN_BUF:
+                        buf_size = max(DOWNSTREAM_MIN_BUF, buf_size // 2)
+                    if not await check_quota(uuid, size):
+                        break
+                    account_traffic(conn_id, uuid, size)
+                    await send({"type": "http.response.body",
+                                "body": grpc_encode_frame(data), "more_body": True})
+            except Exception:
+                pass
+
+        task_up = asyncio.create_task(grpc_to_tcp())
+        task_down = asyncio.create_task(tcp_to_grpc())
+        watch = asyncio.create_task(conn_handle.closed.wait())
+        # The connection is finished when the downlink drains (upstream closed
+        # its read side) or the link is deleted. The uplink is only a feeder: a
+        # client may half-close its gRPC request stream (END_STREAM) while still
+        # reading the response, so uplink completion must NOT tear down the
+        # still-active downlink. Hence we wait on the downlink + delete-watch.
+        await asyncio.wait({task_down, watch}, return_when=asyncio.FIRST_COMPLETED)
+        for t in (task_up, task_down, watch):
+            if not t.done():
+                t.cancel()
+        await asyncio.gather(task_up, task_down, watch, return_exceptions=True)
+
+    except Exception as exc:
+        stats["total_errors"] += 1
+        error_logs.append({"error": f"grpc: {exc}", "time": datetime.now().isoformat()})
+        if not started:
+            await _grpc_send_status(send, 500)
+            started = True
+    finally:
+        if writer:
+            try:
+                writer.close()
+            except Exception:
+                pass
+        if started:
+            try:
+                await send({"type": "http.response.body", "body": b"", "more_body": False})
+            except Exception:
+                pass
+        if conn_id:
+            info = connections.pop(conn_id, None)
+            connection_sockets.pop(conn_id, None)
+            if info:
+                remove_ip_from_link(info.get("uuid"), info.get("ip"))
+
+# Mount the gRPC engine on the shared port. It only claims the /grpc/* prefix,
+# leaving the REST API, subscription, WS and UI routes on HTTP/1.1 untouched.
+app.mount("/grpc", grpc_tunnel_asgi)
+
+# ==========================================
 # Dashboard & Login UI
 # ==========================================
 @app.get("/login", response_class=HTMLResponse)
@@ -1046,4 +1446,17 @@ async def dashboard_page(request: Request):
     return HTMLResponse(content=DASHBOARD_HTML)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=CONFIG.port)
+    # Hypercorn (not uvicorn) so a single $PORT listener serves HTTP/1.1 for the
+    # REST API + WebSocket transport AND HTTP/2 for the gRPC transport. Cleartext
+    # HTTP/2 (h2c) is negotiated per-connection via the prior-knowledge preface or
+    # the HTTP/1.1 `Upgrade: h2c` handshake, so no second port is required.
+    from hypercorn.config import Config
+    from hypercorn.asyncio import serve
+
+    config = Config()
+    config.bind = [f"0.0.0.0:{CONFIG.port}"]
+    config.workers = 1
+    config.h2_max_concurrent_streams = 256
+    # Long-lived tunnels: don't let idle-timeouts kill active proxy streams.
+    config.keep_alive_timeout = 3600
+    asyncio.run(serve(app, config))

@@ -18,7 +18,21 @@ services:
       # Set to "true" only if you knowingly need internal access.
       - key: ALLOW_PRIVATE_RANGES
         value: "false"
-    # NOTE: Render's free plan has an ephemeral filesystem, so the JSON
-    # persistence file does NOT survive redeploys or cold starts. For durable
-    # storage, attach a persistent disk (paid) at ./data, or wire up an external
-    # database. See README for details.
+      # Persistent state directory. Point this at the disk mount below so
+      # ren_data.json (links, addresses, admin auth) survives redeploys and
+      # cold starts. Leave unset only if you accept ephemeral storage.
+      - key: DATA_DIR
+        value: /var/data
+    # Durable storage for ren_data.json. A persistent disk is a paid feature; on
+    # the free plan the filesystem is ephemeral and state is lost on redeploy /
+    # cold start. Uncomment this block (and keep DATA_DIR=/var/data above) on a
+    # paid plan to persist state. On Railway, attach a Volume and set DATA_DIR to
+    # its mount path instead (e.g. /data).
+    # disk:
+    #   name: ren-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # NOTE: The app now runs under Hypercorn and serves HTTP/1.1 (REST + WS) and
+    # HTTP/2 (gRPC / "gun") on the same $PORT. For the gRPC transport to work
+    # end-to-end, the platform edge must forward HTTP/2 (h2c) to the container;
+    # if the edge only proxies HTTP/1.1, use the WebSocket transport instead.
