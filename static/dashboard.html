@@ -7,12 +7,12 @@
 <title>REN — Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script>/* set theme before paint to avoid flash */
-document.documentElement.setAttribute('data-theme',localStorage.getItem('ren_theme')||'dark');
-document.documentElement.lang=localStorage.getItem('ren_lang')||'en';</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;600&family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>/* set theme + direction before paint to avoid flash */
+(function(){var t=localStorage.getItem('ren_theme')||'dark',l=localStorage.getItem('ren_lang')||'en';
+document.documentElement.setAttribute('data-theme',t);document.documentElement.lang=l;
+document.documentElement.setAttribute('dir',l==='fa'?'rtl':'ltr');})();</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
 <style>
 :root{
   --bg:#070b10; --bg2:#0a0f16; --panel:#0f1620; --panel2:#131c28; --panel3:#1a2534;
@@ -35,7 +35,7 @@ html[data-theme="light"]{
 }
 html[lang="fa"] body{font-family:'Vazirmatn',var(--font)}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;display:flex;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;min-height:100dvh;display:flex;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:
   radial-gradient(60vw 40vw at 85% -5%,var(--brand-dim),transparent 60%),
   radial-gradient(50vw 40vw at 0% 100%,rgba(129,140,248,.08),transparent 60%)}
@@ -56,15 +56,15 @@ a{color:var(--brand)}
 .nav-item:hover{background:var(--panel3);color:var(--txt)}
 .nav-item.active{background:var(--brand-dim);color:var(--brand)}
 .nav-item.active::before{content:"";position:absolute;inset-inline-start:0;top:20%;bottom:20%;width:3px;border-radius:3px;background:var(--brand)}
-.sb-foot{padding:16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.sb-foot{padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .sb-status{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--txt2);padding:6px 10px;background:var(--ok-dim);border-radius:10px;font-weight:600}
 .pulse{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pu 2s infinite}
 @keyframes pu{0%{box-shadow:0 0 0 0 var(--ok-dim)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .sb-actions{display:flex;gap:8px}
 
 /* ---------- Topbar (mobile) ---------- */
-.topbar{display:none;position:fixed;inset-block-start:0;inset-inline:0;height:60px;background:var(--panel);border-bottom:1px solid var(--line);padding:0 16px;align-items:center;justify-content:space-between;z-index:900;backdrop-filter:blur(12px)}
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:990;backdrop-filter:blur(2px)}
+.topbar{display:none;position:fixed;inset-block-start:0;inset-inline:0;height:60px;background:var(--panel);border-bottom:1px solid var(--line);padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));align-items:center;justify-content:space-between;z-index:900;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:990;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 .overlay.show{display:block}
 
 /* ---------- Main ---------- */
@@ -155,7 +155,7 @@ html[dir="rtl"] .sw input:checked+span::before{transform:translateX(-18px)}
 textarea.inp{resize:vertical;font-family:var(--mono);font-size:13px;line-height:1.7}
 
 /* modal */
-.modal-bg{position:fixed;inset:0;background:rgba(3,7,12,.66);display:none;align-items:center;justify-content:center;z-index:2000;padding:18px;backdrop-filter:blur(4px)}
+.modal-bg{position:fixed;inset:0;background:rgba(3,7,12,.66);display:none;align-items:center;justify-content:center;z-index:2000;padding:18px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .modal-bg.show{display:flex;animation:fade .25s}
 .modal{background:var(--panel);border:1px solid var(--line2);border-radius:20px;padding:26px;width:100%;max-width:470px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 90px -30px rgba(0,0,0,.8);animation:pop .3s cubic-bezier(.16,1,.3,1)}
 @keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
@@ -183,12 +183,41 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
 
 @media (max-width:920px){.stats{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}}
 @media (max-width:768px){
-  .topbar{display:flex}.overlay{}
+  .topbar{display:flex}
   .sidebar{transform:translateX(-100%)}
   html[dir="rtl"] .sidebar{transform:translateX(100%)}
-  .sidebar.open{transform:translateX(0)}
-  .main{margin-inline-start:0;width:100%;padding:78px 18px 50px}
+  .sidebar.open,html[dir="rtl"] .sidebar.open{transform:translateX(0)}
+  .main{margin-inline-start:0;width:100%;padding:78px max(18px,env(safe-area-inset-right)) max(50px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))}
   .phead h2{font-size:22px}
+}
+
+/* ===== Enhancements: perf, a11y, responsive ===== */
+body.modal-open{overflow:hidden}
+.btn:focus-visible,.nav-item:focus-visible,.icon-btn:focus-visible,.mclose:focus-visible,select.inp:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.sw input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
+@media (max-width:640px){
+  .tablewrap{overflow:visible}
+  table,thead,tbody,tr,td{display:block;width:100%}
+  thead{position:absolute;left:-9999px}
+  tr.row{border:1px solid var(--line);border-radius:14px;margin:0 0 12px;background:var(--panel);overflow:hidden}
+  tr.row:last-child{margin-bottom:0}
+  tr.row td{border:none;border-bottom:1px solid var(--line);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;text-align:end}
+  tr.row td:last-child{border-bottom:none}
+  tr.row td::before{content:attr(data-label);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);font-weight:700;text-align:start;flex:0 0 auto}
+  tr.row td:first-child{background:var(--panel2);text-align:start}
+  tr.row td:first-child::before{display:none}
+  tr.row td:first-child .lbl-cell{font-size:15px}
+  td .usage{flex:1 0 100%;max-width:100%;margin-top:8px;min-width:0}
+  td .rowacts{flex:1;justify-content:flex-end}
+}
+@media (max-width:380px){
+  .stats{grid-template-columns:1fr}
+  .phead{gap:10px}
+  .btn{padding:9px 13px;font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pulse,.page,.modal,.modal-bg.show,.toast,.stat{animation:none!important}
+  *{transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 </style>
 </head>
@@ -199,9 +228,9 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
 
 <!-- Mobile top -->
 <div class="topbar">
-  <button class="btn icon-btn btn-ghost" onclick="toggleSidebar()">☰</button>
+  <button class="btn icon-btn btn-ghost" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
   <div style="display:flex;align-items:center;gap:9px;font-weight:800"><div class="logo" style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand2))"></div>REN</div>
-  <button class="btn icon-btn btn-ghost" onclick="toggleTheme()" id="mThemeBtn">◐</button>
+  <button class="btn icon-btn btn-ghost" onclick="toggleTheme()" id="mThemeBtn" aria-label="Toggle theme">◐</button>
 </div>
 <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
@@ -236,8 +265,8 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
   <div class="sb-foot">
     <div class="sb-status"><span class="pulse"></span><span data-i18n="online">Gateway online</span></div>
     <div class="sb-actions">
-      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="cycleLang()" id="langBtn">EN</button>
-      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="toggleTheme()" id="themeBtn">◐ Theme</button>
+      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="cycleLang()" id="langBtn" aria-label="Change language">EN</button>
+      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="toggleTheme()" id="themeBtn" aria-label="Toggle theme">◐ Theme</button>
     </div>
     <button class="btn btn-sm btn-danger" onclick="withLoading(this,logout)" data-i18n="logout">Log out</button>
   </div>
@@ -336,7 +365,7 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
 
 <!-- CREATE / EDIT MODAL -->
 <div class="modal-bg" id="link-modal" onclick="if(event.target===this)hide('#link-modal')">
-  <div class="modal"><div class="mhead"><h3 id="lm-title" data-i18n="new_inbound">New Inbound</h3><button class="mclose" onclick="hide('#link-modal')">×</button></div>
+  <div class="modal"><div class="mhead"><h3 id="lm-title" data-i18n="new_inbound">New Inbound</h3><button class="mclose" onclick="hide('#link-modal')" aria-label="Close">×</button></div>
     <p class="sub" data-i18n="lm_sub">Set a name and optional limits.</p>
     <input type="hidden" id="lm-uid">
     <div class="fg"><label data-i18n="f_label">Label</label><input class="inp" id="lm-label" placeholder="e.g. phone-home"></div>
@@ -354,7 +383,7 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
 
 <!-- DETAIL MODAL -->
 <div class="modal-bg" id="detail-modal" onclick="if(event.target===this)hide('#detail-modal')">
-  <div class="modal"><div class="mhead"><h3 id="d-title">Config</h3><button class="mclose" onclick="hide('#detail-modal')">×</button></div>
+  <div class="modal"><div class="mhead"><h3 id="d-title">Config</h3><button class="mclose" onclick="hide('#detail-modal')" aria-label="Close">×</button></div>
     <p class="sub" data-i18n="d_sub">Scan the QR in v2rayNG / Nekobox, or copy a link.</p>
     <div class="qr-holder"><div id="qr"></div></div>
     <div id="d-meta"></div>
@@ -368,7 +397,7 @@ html[dir="rtl"] .toast{transform:translateX(-130%)}
 
 <!-- ADD ADDRESS MODAL -->
 <div class="modal-bg" id="addr-modal" onclick="if(event.target===this)hide('#addr-modal')">
-  <div class="modal"><div class="mhead"><h3 data-i18n="add_clean">Add Clean IPs</h3><button class="mclose" onclick="hide('#addr-modal')">×</button></div>
+  <div class="modal"><div class="mhead"><h3 data-i18n="add_clean">Add Clean IPs</h3><button class="mclose" onclick="hide('#addr-modal')" aria-label="Close">×</button></div>
     <p class="sub" data-i18n="addr_sub">One IP or domain per line.</p>
     <textarea class="inp" id="new-addr" rows="6" placeholder="104.16.0.1&#10;www.bing.com&#10;speed.cloudflare.com"></textarea>
     <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="withLoading(this,addAddresses)" data-i18n="add_all">Add All</button>
@@ -385,15 +414,15 @@ let lang=localStorage.getItem('ren_lang')||'en',theme=localStorage.getItem('ren_
 let allLinks=[],statsData={},chart,qr;
 const T=k=>(I18N[lang][k]||I18N.en[k]||k);
 
-function applyLang(l){lang=l;document.documentElement.lang=l;document.body.dir=l==='fa'?'rtl':'ltr';
+function applyLang(l){lang=l;document.documentElement.lang=l;document.documentElement.dir=l==='fa'?'rtl':'ltr';document.body.dir=l==='fa'?'rtl':'ltr';
   $$('[data-i18n]').forEach(e=>{const v=T(e.dataset.i18n);if(v)e.textContent=v});
   $$('[data-i18n-ph]').forEach(e=>{const v=T(e.dataset.i18nPh);if(v)e.placeholder=v});
   $('#langBtn').textContent=l.toUpperCase();localStorage.setItem('ren_lang',l);
-  if(statsData.uptime)renderStats();loadLinks();}
+  if(statsData.uptime)renderStats();renderLinks();}
 function cycleLang(){applyLang(lang==='en'?'fa':'en')}
 function applyTheme(t){theme=t;document.documentElement.setAttribute('data-theme',t);
   const g=t==='dark'?'◐':'☀';$('#themeBtn').textContent=g+' Theme';$('#mThemeBtn').textContent=g;
-  localStorage.setItem('ren_theme',t);if(chart)drawChart();}
+  localStorage.setItem('ren_theme',t);if(chart)drawChart(true);}
 function toggleTheme(){applyTheme(theme==='dark'?'light':'dark')}
 applyTheme(theme);applyLang(lang);
 
@@ -403,7 +432,8 @@ function goPage(p){
   $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===p));
   if(window.innerWidth<=768&&$('#sidebar').classList.contains('open'))toggleSidebar();
 }
-function show(s){$(s).classList.add('show')}function hide(s){$(s).classList.remove('show')}
+function show(s){$(s).classList.add('show');document.body.classList.add('modal-open')}
+function hide(s){$(s).classList.remove('show');if(!document.querySelector('.modal-bg.show'))document.body.classList.remove('modal-open')}
 function toast(msg,err){const t=$('#toast');t.innerHTML=(err?'✕ ':'✓ ')+msg;t.className='toast'+(err?' err':'');void t.offsetWidth;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200)}
 async function withLoading(btn,fn){const h=btn.innerHTML;btn.innerHTML='<span class="spin"></span>';btn.disabled=true;try{await fn()}catch(e){console.error(e)}finally{btn.innerHTML=h;btn.disabled=false}}
 function fmt(b){b=+b||0;return b>=1073741824?(b/1073741824).toFixed(2)+' GB':b>=1048576?(b/1048576).toFixed(1)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' B'}
@@ -428,15 +458,16 @@ function renderStats(){const s=statsData;
 }
 async function loadStats(){try{const r=await fetch('/stats');if(!r.ok)return;statsData=await r.json();renderStats();drawChart()}catch(e){}}
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
-function drawChart(){const ctx=$('#chart');if(!ctx||!statsData.hourly_traffic)return;
+function drawChart(rebuild){const ctx=$('#chart');if(!ctx||typeof Chart==='undefined'||!statsData.hourly_traffic)return;
   const sorted=Object.entries(statsData.hourly_traffic).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
   const labels=sorted.map(e=>e[0].split(' ')[1]||e[0]),data=sorted.map(e=>+(e[1]/1048576).toFixed(1));
   $('#chart-total').textContent=data.reduce((a,b)=>a+b,0).toFixed(1)+' MB';
+  if(chart&&!rebuild){chart.data.labels=labels;chart.data.datasets[0].data=data;chart.update('none');return}
   const brand=css('--brand'),txt=css('--txt3'),line=css('--line');
   if(chart)chart.destroy();
   const g=ctx.getContext('2d').createLinearGradient(0,0,0,230);g.addColorStop(0,brand+'cc');g.addColorStop(1,brand+'14');
   chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:g,borderRadius:6,maxBarThickness:34}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' MB'}}},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' MB'}}},
     scales:{x:{grid:{display:false},ticks:{color:txt,font:{size:10}}},y:{grid:{color:line},ticks:{color:txt,font:{size:10}},beginAtZero:true}}}});
 }
 
@@ -449,25 +480,26 @@ function renderLinks(){const b=$('#links-body');
   if(!allLinks.length){b.innerHTML=`<tr><td colspan="6"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg><div>${T('inbounds_sub')}</div></div></td></tr>`;return}
   b.innerHTML=allLinks.map(l=>{const lim=l.limit_bytes,pct=lim?Math.min(100,l.used_bytes/lim*100):0;
     return `<tr class="row">
-      <td><div class="lbl-cell">${esc(l.label)}</div><div class="mini">${l.uuid.slice(0,8)}…</div></td>
-      <td><div class="mini">${fmt(l.used_bytes)} / ${lim?fmt(lim):'∞'}</div><div class="usage"><i class="${pct>85?'hi':''}" style="width:${pct}%"></i></div></td>
-      <td><span class="mono">${num(l.current_connections)}</span><span class="mini"> / ${l.max_connections||'∞'}</span></td>
-      <td>${expiryText(l)}</td>
-      <td><label class="sw"><input type="checkbox" ${l.active?'checked':''} onchange="toggleActive('${l.uuid}',this.checked)"><span></span></label> ${statusPill(l)}</td>
-      <td><div class="rowacts">
-        <button class="btn btn-sm icon-btn" title="${T('details')}" onclick="showDetail('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z" fill="currentColor" stroke="none" opacity=".5"/></svg></button>
-        <button class="btn btn-sm icon-btn" title="${T('edit')}" onclick="openEdit('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button class="btn btn-sm icon-btn btn-danger" title="${T('delete')}" onclick="deleteLink('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <td data-label="${T('th_label')}"><div class="lbl-cell">${esc(l.label)}</div><div class="mini">${l.uuid.slice(0,8)}…</div></td>
+      <td data-label="${T('th_usage')}"><div class="mini">${fmt(l.used_bytes)} / ${lim?fmt(lim):'∞'}</div><div class="usage"><i class="${pct>85?'hi':''}" style="width:${pct}%"></i></div></td>
+      <td data-label="${T('th_ips')}"><span class="mono">${num(l.current_connections)}</span><span class="mini"> / ${l.max_connections||'∞'}</span></td>
+      <td data-label="${T('th_expiry')}">${expiryText(l)}</td>
+      <td data-label="${T('th_status')}"><label class="sw"><input type="checkbox" aria-label="${T('th_status')}" ${l.active?'checked':''} onchange="toggleActive('${l.uuid}',this.checked)"><span></span></label> ${statusPill(l)}</td>
+      <td data-label="${T('th_actions')}"><div class="rowacts">
+        <button class="btn btn-sm icon-btn" title="${T('details')}" aria-label="${T('details')}" onclick="showDetail('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z" fill="currentColor" stroke="none" opacity=".5"/></svg></button>
+        <button class="btn btn-sm icon-btn" title="${T('edit')}" aria-label="${T('edit')}" onclick="openEdit('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn btn-sm icon-btn btn-danger" title="${T('delete')}" aria-label="${T('delete')}" onclick="deleteLink('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div></td></tr>`}).join('');
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 function openCreate(){$('#lm-title').textContent=T('new_inbound');$('#lm-save').textContent=T('create');
   $('#lm-uid').value='';$('#lm-label').value='';$('#lm-limit').value='';$('#lm-unit').value='GB';$('#lm-maxconn').value='';$('#lm-expiry').value='';show('#link-modal')}
+function niceLimit(b){if(!b)return{v:'',u:'GB'};const gb=b/1073741824;if(Number.isInteger(gb))return{v:gb,u:'GB'};const mb=b/1048576;if(Number.isInteger(mb))return{v:mb,u:'MB'};return{v:+gb.toFixed(2),u:'GB'}}
 function openEdit(uid){const l=allLinks.find(x=>x.uuid===uid);if(!l)return;
   $('#lm-title').textContent=T('edit_inbound');$('#lm-save').textContent=T('save_changes');
   $('#lm-uid').value=uid;$('#lm-label').value=l.label;
-  $('#lm-limit').value=l.limit_bytes?(l.limit_bytes/1073741824):'';$('#lm-unit').value='GB';
+  const nice=niceLimit(l.limit_bytes);$('#lm-limit').value=nice.v;$('#lm-unit').value=nice.u;
   $('#lm-maxconn').value=l.max_connections||'';$('#lm-expiry').value='';show('#link-modal')}
 async function saveLink(){const uid=$('#lm-uid').value,label=$('#lm-label').value.trim(),li=$('#lm-label');
   if(!label){li.classList.add('bad');toast(T('fill'),true);return}li.classList.remove('bad');
@@ -479,10 +511,12 @@ async function saveLink(){const uid=$('#lm-uid').value,label=$('#lm-label').valu
     hide('#link-modal');loadLinks();loadStats();
   }catch(e){toast(T('fail'),true)}
 }
-async function toggleActive(uid,active){try{await fetch('/api/links/'+uid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});const l=allLinks.find(x=>x.uuid===uid);if(l)l.active=active;renderLinks()}catch(e){toast(T('fail'),true)}}
+async function toggleActive(uid,active){const l=allLinks.find(x=>x.uuid===uid);try{const r=await fetch('/api/links/'+uid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});if(!r.ok)throw 0;if(l)l.active=active;renderLinks()}catch(e){toast(T('fail'),true);renderLinks()}}
 async function deleteLink(uid){if(!confirm(T('del_confirm')))return;try{await fetch('/api/links/'+uid,{method:'DELETE'});toast(T('deleted'));loadLinks();loadStats()}catch(e){toast(T('fail'),true)}}
 
-function qrOf(text){$('#qr').innerHTML='';qr=new QRCode($('#qr'),{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.M})}
+let _qrLoad;
+function ensureQR(){if(window.QRCode)return Promise.resolve();if(!_qrLoad)_qrLoad=new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});return _qrLoad}
+async function qrOf(text){try{await ensureQR()}catch(_){toast(T('fail'),true);return}$('#qr').innerHTML='';qr=new QRCode($('#qr'),{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.M})}
 function showDetail(uid){const l=allLinks.find(x=>x.uuid===uid);if(!l)return;
   $('#d-title').textContent=l.label;
   const sub=`${location.origin}/sub/${l.uuid}`;
@@ -496,7 +530,7 @@ function showDetail(uid){const l=allLinks.find(x=>x.uuid===uid);if(!l)return;
 // ---- clean ip ----
 async function loadAddresses(){try{const r=await fetch('/api/addresses');const d=await r.json();const list=d.addresses||[];
   $('#addr-list').innerHTML=list.length?list.map((a,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)">
-    <span class="mono">${esc(a)}</span><button class="btn btn-sm btn-danger icon-btn" onclick="delAddress(${i})">×</button></div>`).join('')
+    <span class="mono">${esc(a)}</span><button class="btn btn-sm btn-danger icon-btn" aria-label="${T('delete')}" onclick="delAddress(${i})">×</button></div>`).join('')
     :`<div class="empty">${T('cleanip_none')}</div>`}catch(e){}}
 async function addAddresses(){const lines=$('#new-addr').value.split('\n').map(s=>s.trim()).filter(Boolean);
   if(!lines.length){toast(T('fill'),true);return}
@@ -525,7 +559,9 @@ async function logout(){await fetch('/api/logout',{method:'POST'});location.href
 async function refreshAll(){await Promise.all([loadStats(),loadLinks(),loadAddresses()])}
 
 checkAccount();loadStats();loadLinks();loadAddresses();loadDomain();
-setInterval(loadStats,10000);
+let _poll=setInterval(loadStats,10000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInterval(_poll);_poll=0}else if(!_poll){loadStats();_poll=setInterval(loadStats,10000)}});
+window.addEventListener('load',()=>{if(typeof Chart!=='undefined'&&statsData.hourly_traffic)drawChart(true)});
 </script>
 </body>
 </html>
