@@ -1,7 +1,9 @@
 fastapi==0.104.1
-# Hypercorn replaces uvicorn: it speaks HTTP/2 (required for the gRPC transport)
-# and HTTP/1.1 + WebSocket on the same port. `h2` is its HTTP/2 backend and
-# `wsproto` (pulled in automatically) handles WebSocket.
+# Hypercorn ASGI server: serves the REST API, the WebSocket transport, and the
+# XHTTP transport on a single port over plain HTTP/1.1. `wsproto` (pulled in
+# automatically) handles WebSocket; `h2` ships as a Hypercorn dependency but
+# XHTTP needs NO end-to-end HTTP/2 — that requirement is exactly what the old
+# gRPC transport tripped over on Railway/Render edges.
 hypercorn==0.16.0
 h2==4.1.0
 httpx==0.25.1

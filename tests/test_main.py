@@ -253,6 +253,20 @@ def test_subscription_endpoint(client):
     import base64 as _b64
     decoded = _b64.b64decode(r.text).decode()
     assert "vless://" in decoded
+    # Both transports are fanned out; gRPC is gone.
+    assert "type=ws" in decoded
+    assert "type=xhttp" in decoded
+    assert "type=grpc" not in decoded
+
+
+def test_create_link_returns_xhttp_field(client):
+    client.post("/api/login", json={"password": "admin"})
+    created = client.post("/api/links", json={"label": "XProxy", "limit_value": 1, "limit_unit": "GB"})
+    assert created.status_code == 200
+    data = created.json()
+    assert "vless_link_xhttp" in data
+    assert "vless_link_grpc" not in data
+    assert "type=xhttp" in data["vless_link_xhttp"]
 
 
 # ----------------------------- Network / link params (new) -----------------------------
@@ -279,6 +293,63 @@ def test_generate_vless_link_custom_address():
     assert link.startswith(f"vless://{u}@1.1.1.1:443?")
 
 
+def test_generate_vless_link_xhttp():
+    u = uuid_lib.uuid4()
+    link = main.generate_vless_link(str(u), remark="REN-X", transport="xhttp")
+    assert link.startswith("vless://")
+    assert str(u) in link
+    assert ":443?" in link
+    # XHTTP transport params (packet-up mode, TLS-fronted, HTTP/1.1 friendly).
+    assert "type=xhttp" in link
+    assert "mode=packet-up" in link
+    assert "security=tls" in link
+    assert "encryption=none" in link
+    # The link uuid routes per-link: path is /<prefix>/<uuid> (URL-encoded).
+    assert f"/{main.XHTTP_PATH_PREFIX}/{u}" in link.replace("%2F", "/")
+    assert link.endswith("#REN-X")
+    # gRPC must be fully gone from the generator.
+    assert "grpc" not in link.lower()
+    assert "type=grpc" not in link
+
+
+def test_generate_vless_link_xhttp_over_clean_ip():
+    # XHTTP also works over clean-IP/CDN addresses, so the connect host follows
+    # `address` while SNI/Host stay on the real domain.
+    u = uuid_lib.uuid4()
+    link = main.generate_vless_link(str(u), remark="R", address="104.16.0.1", transport="xhttp")
+    assert link.startswith(f"vless://{u}@104.16.0.1:443?")
+    assert "type=xhttp" in link
+
+
+def test_no_grpc_transport_field_in_api_shape():
+    # The gRPC transport was removed; the generator no longer special-cases it,
+    # so an unknown transport falls back to the WS link shape (never a grpc one).
+    u = uuid_lib.uuid4()
+    link = main.generate_vless_link(str(u), remark="R", transport="grpc")
+    assert "type=grpc" not in link
+    assert "type=ws" in link
+
+
+def test_xhttp_reorder_buffer_inorder_delivery():
+    # Out-of-order uplink packets are held until the missing seq arrives, then
+    # delivered as one contiguous run (the core of packet-up reassembly).
+    pending = {}
+    next_seq = 0
+    # seq 2 and 1 arrive before seq 0 -> nothing deliverable yet.
+    pending[2] = b"c"
+    chunks, next_seq = main._xhttp_drain_inorder(pending, next_seq)
+    assert chunks == [] and next_seq == 0
+    pending[1] = b"b"
+    chunks, next_seq = main._xhttp_drain_inorder(pending, next_seq)
+    assert chunks == [] and next_seq == 0
+    # seq 0 arrives -> 0,1,2 flush in order.
+    pending[0] = b"a"
+    chunks, next_seq = main._xhttp_drain_inorder(pending, next_seq)
+    assert chunks == [b"a", b"b", b"c"]
+    assert next_seq == 3
+    assert pending == {}
+
+
 def test_decode_early_data_roundtrip():
     import base64 as _b64
     payload = b"\x00" + b"hello-early-data" * 4
@@ -295,6 +366,89 @@ def test_decode_early_data_non_base64_is_safe():
     # Padded/again-decodable strings just return their bytes; the header parser
     # rejects anything that isn't a valid VLESS header, so this is safe.
     assert isinstance(main.decode_early_data("!!!not@@@base64"), bytes)
+
+
+def test_xhttp_end_to_end_roundtrip():
+    """Full packet-up round-trip: a streaming downlink GET plus an uplink
+    POST(seq=0) carrying a VLESS header proxy bytes to a real upstream and
+    stream the echo back — exercising the whole XHTTP engine end to end."""
+    async def scenario():
+        # 1) upstream echo server: echo one read, then close -> downlink EOF.
+        async def echo(reader, writer):
+            data = await reader.read(4096)
+            if data:
+                writer.write(data)
+                await writer.drain()
+            writer.close()
+        server = await asyncio.start_server(echo, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+
+        u = uuid_lib.uuid4()
+        uid = str(u)
+        main.LINKS[uid] = {
+            "label": "xh", "limit_bytes": 0, "used_bytes": 0, "max_connections": 0,
+            "created_at": "x", "active": True, "expiry": "", "uuid_bytes": u.bytes,
+        }
+        prev = main.CONFIG.allow_private_ranges
+        main.CONFIG.allow_private_ranges = True   # allow the loopback echo target
+        try:
+            sid = "itest-session"
+            payload = b"ping-xhttp-roundtrip"
+            header = build_vless_header(u.bytes, addr_type=1,
+                                        address=b"\x7f\x00\x00\x01", port=port,
+                                        payload=payload)
+
+            # ---- downlink GET (long-lived streaming response) ----
+            down_chunks = []
+            disc = asyncio.Event()
+
+            async def get_receive():
+                await disc.wait()
+                return {"type": "http.disconnect"}
+
+            async def get_send(ev):
+                if ev["type"] == "http.response.body" and ev.get("body"):
+                    down_chunks.append(ev["body"])
+
+            get_scope = {"type": "http", "method": "GET",
+                         "path": f"/{uid}/{sid}", "headers": [], "client": ("1.2.3.4", 5)}
+            get_task = asyncio.create_task(
+                main.xhttp_tunnel_asgi(get_scope, get_receive, get_send))
+            await asyncio.sleep(0.05)   # let the GET attach and await the uplink
+
+            # ---- uplink POST seq=0 (VLESS header + first payload) ----
+            sent = {"done": False}
+
+            async def post_receive():
+                if not sent["done"]:
+                    sent["done"] = True
+                    return {"type": "http.request", "body": header, "more_body": False}
+                return {"type": "http.disconnect"}
+
+            post_status = {}
+
+            async def post_send(ev):
+                if ev["type"] == "http.response.start":
+                    post_status["status"] = ev["status"]
+
+            post_scope = {"type": "http", "method": "POST",
+                          "path": f"/{uid}/{sid}/0", "headers": [], "client": ("1.2.3.4", 5)}
+            await main.xhttp_tunnel_asgi(post_scope, post_receive, post_send)
+            assert post_status.get("status") == 200
+
+            # The echoed payload must come back down the GET stream, then EOF.
+            await asyncio.wait_for(get_task, timeout=5)
+            disc.set()
+            assert payload in b"".join(down_chunks)
+            # Session must be cleaned up afterwards.
+            assert sid not in main.xhttp_sessions
+        finally:
+            main.CONFIG.allow_private_ranges = prev
+            main.LINKS.pop(uid, None)
+            server.close()
+            await server.wait_closed()
+
+    asyncio.run(scenario())
 
 
 def test_prune_state_task_helpers_shape():
