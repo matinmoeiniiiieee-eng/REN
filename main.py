@@ -121,6 +121,24 @@ GRPC_SERVICE_PREFIX = (os.environ.get("REN_GRPC_PREFIX", "grpc").strip("/") or "
 # without bound before the header is recognised.
 GRPC_HEADER_MAX = 2048
 
+# ---- Public gRPC endpoint (share-link target) -------------------------------
+# gRPC needs HTTP/2 END-TO-END. Some PaaS edges (Railway, and Render's default
+# domain) terminate TLS and DOWNGRADE HTTP/2 -> HTTP/1.1 before reaching the
+# container, which silently breaks gRPC on the normal HTTPS domain. The portable
+# fix is to expose the app through a *raw TCP* passthrough (e.g. Railway's "TCP
+# Proxy") and let the client speak cleartext HTTP/2 (h2c) straight to Hypercorn.
+#
+# These env vars point the generated gRPC links at that passthrough endpoint:
+#   GRPC_PUBLIC_HOST : host clients dial for gRPC (e.g. xxx.proxy.rlwy.net).
+#   GRPC_PUBLIC_PORT : port clients dial for gRPC (e.g. the TCP-proxy port).
+#   GRPC_TLS         : "true"  -> security=tls (edge/CDN terminates TLS, forwards h2)
+#                      "false" -> security=none (raw TCP passthrough + h2c) [Railway]
+# When GRPC_PUBLIC_HOST is unset we emit a "standard" domain:443 + TLS gRPC link,
+# which only works where the platform forwards HTTP/2 to the container.
+GRPC_PUBLIC_HOST = os.environ.get("GRPC_PUBLIC_HOST", "").strip()
+GRPC_PUBLIC_PORT = os.environ.get("GRPC_PUBLIC_PORT", "").strip()
+GRPC_TLS = os.environ.get("GRPC_TLS", "true").strip().lower() not in ("0", "false", "no", "off")
+
 # ==========================================
 # Password Hashing & Authentication
 # ==========================================
@@ -334,47 +352,63 @@ def grpc_service_name(uuid: str) -> str:
 def generate_vless_link(uuid: str, remark: str = "REN", address: str = None,
                         transport: str = "ws") -> str:
     domain = CUSTOM_DOMAIN if CUSTOM_DOMAIN else get_domain()
-    addr = address if address else domain
 
     if transport == "grpc":
         # gRPC ("gun") transport rides HTTP/2. The client opens a bidirectional
         # gRPC stream at /<serviceName>/Tun; the VLESS request header travels in
-        # the first Hunk message, exactly like the WS first frame. `alpn=h2` is
-        # required so the TLS/ALPN negotiation selects HTTP/2. Fully compatible
-        # with v2rayNG / sing-box gRPC (gun mode) configs.
+        # the first Hunk message, exactly like the WS first frame.
+        #
+        # Endpoint selection: prefer the explicit public gRPC endpoint (a raw
+        # TCP passthrough such as Railway's TCP Proxy) when configured, because
+        # PaaS HTTP edges downgrade HTTP/2 and break gRPC. Otherwise fall back to
+        # the normal domain:443 (only works where the edge forwards HTTP/2).
+        host = GRPC_PUBLIC_HOST or (address if address else domain)
+        port = GRPC_PUBLIC_PORT or "443"
         params = {
             "encryption": "none",
-            "security": "tls",
             "type": "grpc",
             "serviceName": grpc_service_name(uuid),
             "mode": "gun",
-            "authority": domain,
-            "sni": domain,
-            "fp": DEFAULT_FINGERPRINT,
-            "alpn": "h2",
-            "allowInsecure": "0",
         }
-    else:
-        # WebSocket early-data (0-RTT): the client carries the first chunk (which
-        # holds the VLESS request header) inside the `Sec-WebSocket-Protocol`
-        # upgrade header. This shaves a round-trip AND blends the handshake into
-        # ordinary CDN traffic, which helps under DPI. Clients that don't
-        # understand `ed` simply ignore it and send data as normal frames -> the
-        # server handles both paths, so it stays fully compatible with standard
-        # v2rayNG / Nekobox / sing-box configs.
-        path = f"/ws/{uuid}?ed={EARLY_DATA_MAX}"
-        params = {
-            "encryption": "none",
-            "security": "tls",
-            "type": "ws",
-            "headerType": "none",
-            "host": domain,
-            "path": path,
-            "sni": domain,
-            "fp": DEFAULT_FINGERPRINT,
-            "alpn": "http/1.1",
-            "allowInsecure": "0",
-        }
+        if GRPC_TLS:
+            # TLS is terminated by an edge/CDN that forwards HTTP/2 to us; ALPN
+            # selects h2. (Camouflages as ordinary HTTPS.)
+            params["security"] = "tls"
+            params["authority"] = domain
+            params["sni"] = domain
+            params["fp"] = DEFAULT_FINGERPRINT
+            params["alpn"] = "h2"
+            params["allowInsecure"] = "0"
+        else:
+            # Raw TCP passthrough + cleartext HTTP/2 (h2c) straight to Hypercorn.
+            # This is the working path on Railway (TCP Proxy). No TLS/ALPN here.
+            params["security"] = "none"
+            params["authority"] = host
+        query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
+        return f"vless://{uuid}@{host}:{port}?{query}#{quote(remark)}"
+
+    # ---- WebSocket (default) ----
+    # WebSocket early-data (0-RTT): the client carries the first chunk (which
+    # holds the VLESS request header) inside the `Sec-WebSocket-Protocol`
+    # upgrade header. This shaves a round-trip AND blends the handshake into
+    # ordinary CDN traffic, which helps under DPI. Clients that don't understand
+    # `ed` simply ignore it and send data as normal frames -> the server handles
+    # both paths, so it stays fully compatible with standard v2rayNG / Nekobox /
+    # sing-box configs. WS works on Railway's normal HTTPS domain (HTTP/1.1).
+    addr = address if address else domain
+    path = f"/ws/{uuid}?ed={EARLY_DATA_MAX}"
+    params = {
+        "encryption": "none",
+        "security": "tls",
+        "type": "ws",
+        "headerType": "none",
+        "host": domain,
+        "path": path,
+        "sni": domain,
+        "fp": DEFAULT_FINGERPRINT,
+        "alpn": "http/1.1",
+        "allowInsecure": "0",
+    }
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{addr}:443?{query}#{quote(remark)}"
 
@@ -794,15 +828,15 @@ async def subscription_endpoint(uid: str):
     if not link["active"] or is_expired(link):
         raise HTTPException(status_code=403, detail="link inactive or expired")
 
-    # Offer both transports for the main server and every custom address so
-    # clients can pick whichever survives their network (WS or gRPC/gun).
+    # WebSocket works on the normal HTTPS domain and over every custom (CDN)
+    # address, so we fan those out. gRPC uses a single fixed endpoint (the raw
+    # TCP passthrough / edge that forwards HTTP/2), so it gets one entry.
     sub_links = [
         generate_vless_link(uid, remark=f"REN-{link['label']}-WS"),
         generate_vless_link(uid, remark=f"REN-{link['label']}-gRPC", transport="grpc"),
     ]
     for i, addr in enumerate(CUSTOM_ADDRESSES):
         sub_links.append(generate_vless_link(uid, remark=f"REN-{link['label']}-IP{i+1}-WS", address=addr))
-        sub_links.append(generate_vless_link(uid, remark=f"REN-{link['label']}-IP{i+1}-gRPC", address=addr, transport="grpc"))
 
     sub_content = "\n".join(sub_links)
     encoded = base64.b64encode(sub_content.encode('utf-8')).decode('utf-8')

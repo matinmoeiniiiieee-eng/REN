@@ -23,6 +23,20 @@ services:
       # cold starts. Leave unset only if you accept ephemeral storage.
       - key: DATA_DIR
         value: /var/data
+      # ---- gRPC endpoint (see the IMPORTANT note below) --------------------
+      # Set these ONLY when exposing gRPC through a raw TCP passthrough (Railway
+      # "TCP Proxy"), because PaaS HTTP edges downgrade HTTP/2 and break gRPC.
+      #   GRPC_PUBLIC_HOST : the passthrough host (e.g. xxx.proxy.rlwy.net)
+      #   GRPC_PUBLIC_PORT : the passthrough port (e.g. 12345)
+      #   GRPC_TLS=false   : raw TCP passthrough uses cleartext HTTP/2 (h2c)
+      # Leave all three unset to keep gRPC links on domain:443 + TLS (only works
+      # where the edge forwards HTTP/2 to the container).
+      # - key: GRPC_PUBLIC_HOST
+      #   value: xxx.proxy.rlwy.net
+      # - key: GRPC_PUBLIC_PORT
+      #   value: "12345"
+      # - key: GRPC_TLS
+      #   value: "false"
     # Durable storage for ren_data.json. A persistent disk is a paid feature; on
     # the free plan the filesystem is ephemeral and state is lost on redeploy /
     # cold start. Uncomment this block (and keep DATA_DIR=/var/data above) on a
@@ -32,7 +46,14 @@ services:
     #   name: ren-data
     #   mountPath: /var/data
     #   sizeGB: 1
-    # NOTE: The app now runs under Hypercorn and serves HTTP/1.1 (REST + WS) and
-    # HTTP/2 (gRPC / "gun") on the same $PORT. For the gRPC transport to work
-    # end-to-end, the platform edge must forward HTTP/2 (h2c) to the container;
-    # if the edge only proxies HTTP/1.1, use the WebSocket transport instead.
+    #
+    # IMPORTANT — gRPC + HTTP/2 on PaaS edges:
+    # The app runs under Hypercorn and serves HTTP/1.1 (REST + WS) and cleartext
+    # HTTP/2 / h2c (gRPC) on the same $PORT. BUT Railway's HTTP edge (and Render's
+    # default domain) DEMUX HTTP/2 down to HTTP/1.1 before reaching the container,
+    # which breaks gRPC on the normal HTTPS domain. WebSocket is unaffected and is
+    # the recommended transport on that domain.
+    # To run gRPC on Railway: enable a **TCP Proxy** on the service (Settings ->
+    # Networking -> TCP Proxy) pointing at the same container $PORT, then set
+    # GRPC_PUBLIC_HOST / GRPC_PUBLIC_PORT to the generated proxy host:port and
+    # GRPC_TLS=false. Clients then reach Hypercorn's h2c directly (no demux).
