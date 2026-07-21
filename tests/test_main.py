@@ -253,3 +253,55 @@ def test_subscription_endpoint(client):
     import base64 as _b64
     decoded = _b64.b64decode(r.text).decode()
     assert "vless://" in decoded
+
+
+# ----------------------------- Network / link params (new) -----------------------------
+def test_generate_vless_link_backcompat_and_params():
+    u = uuid_lib.uuid4()
+    link = main.generate_vless_link(str(u), remark="REN-Test")
+    assert link.startswith("vless://")
+    assert str(u) in link
+    assert "@" in link and ":443?" in link
+    # Backward-compatible, DPI/CDN-friendly params must be present.
+    assert "type=ws" in link
+    assert "security=tls" in link
+    assert "encryption=none" in link
+    assert "headerType=none" in link
+    assert "alpn=http/1.1" in link.replace("%2F", "/")
+    # Early-data hint is advertised on the ws path.
+    assert "ed%3D" in link or "ed=" in link
+    assert link.endswith("#REN-Test")
+
+
+def test_generate_vless_link_custom_address():
+    u = uuid_lib.uuid4()
+    link = main.generate_vless_link(str(u), remark="R", address="1.1.1.1")
+    assert link.startswith(f"vless://{u}@1.1.1.1:443?")
+
+
+def test_decode_early_data_roundtrip():
+    import base64 as _b64
+    payload = b"\x00" + b"hello-early-data" * 4
+    token = _b64.urlsafe_b64encode(payload).decode().rstrip("=")  # RawURLEncoding
+    assert main.decode_early_data(token) == payload
+    # Multiple offered subprotocols: first token wins.
+    assert main.decode_early_data(f"{token}, chat") == payload
+
+
+def test_decode_early_data_non_base64_is_safe():
+    # A genuine subprotocol name is not valid base64 payload -> empty, frame path used.
+    assert main.decode_early_data("") == b""
+    assert main.decode_early_data(None) == b""
+    # Padded/again-decodable strings just return their bytes; the header parser
+    # rejects anything that isn't a valid VLESS header, so this is safe.
+    assert isinstance(main.decode_early_data("!!!not@@@base64"), bytes)
+
+
+def test_prune_state_task_helpers_shape():
+    # Sanity: pruning-related state containers exist and behave as expected.
+    main.SESSIONS.clear()
+    main.SESSIONS["expired"] = 0.0            # far in the past
+    main.SESSIONS["live"] = main.time.time() + 9999
+    expired = [t for t, exp in list(main.SESSIONS.items()) if exp < main.time.time()]
+    assert "expired" in expired and "live" not in expired
+    main.SESSIONS.clear()

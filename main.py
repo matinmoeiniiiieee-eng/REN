@@ -94,6 +94,19 @@ login_attempts: dict = defaultdict(list)
 PBKDF2_ITERATIONS = 200_000
 
 # ==========================================
+# Network / Proxy tuning
+# ==========================================
+# uTLS fingerprint advertised in share links (chrome blends best with CDN traffic).
+DEFAULT_FINGERPRINT = os.environ.get("REN_FINGERPRINT", "chrome").strip() or "chrome"
+# WebSocket early-data budget (bytes) advertised via the `ed` path param.
+EARLY_DATA_MAX = 2048
+# Upstream TCP socket buffer size; modest so we stay inside PaaS memory limits.
+SOCKET_BUFFER_BYTES = 262144
+# Downstream read buffer bounds (adaptive between these two).
+DOWNSTREAM_MIN_BUF = 16384
+DOWNSTREAM_MAX_BUF = 262144
+
+# ==========================================
 # Password Hashing & Authentication
 # ==========================================
 def hash_password(pw: str, salt: bytes) -> str:
@@ -259,6 +272,23 @@ async def periodic_save_task():
         await asyncio.sleep(60)
         await save_state()
 
+async def prune_state_task():
+    # Sessions and login-attempt buckets are only cleaned lazily on access, so
+    # abandoned tokens / one-off attacker IPs would accumulate forever. Sweep them
+    # hourly to keep memory flat on long-lived free-tier instances.
+    while True:
+        await asyncio.sleep(3600)
+        now = time.time()
+        for tok in [t for t, exp in list(SESSIONS.items()) if exp < now]:
+            SESSIONS.pop(tok, None)
+        window = CONFIG.login_window_seconds
+        for ip in list(login_attempts.keys()):
+            recent = [t for t in login_attempts.get(ip, []) if now - t < window]
+            if recent:
+                login_attempts[ip] = recent
+            else:
+                login_attempts.pop(ip, None)
+
 def ensure_default_link():
     if not LINKS:
         uid = str(uuid_lib.uuid4())
@@ -278,16 +308,24 @@ def get_domain() -> str:
 def generate_vless_link(uuid: str, remark: str = "REN", address: str = None) -> str:
     domain = CUSTOM_DOMAIN if CUSTOM_DOMAIN else get_domain()
     addr = address if address else domain
-    path = f"/ws/{uuid}"
+    # WebSocket early-data (0-RTT): the client carries the first chunk (which holds
+    # the VLESS request header) inside the `Sec-WebSocket-Protocol` upgrade header.
+    # This shaves a round-trip AND blends the handshake into ordinary CDN traffic,
+    # which helps under DPI. Clients that don't understand `ed` simply ignore it and
+    # send data as normal frames -> the server handles both paths, so it stays fully
+    # compatible with standard v2rayNG / Nekobox / sing-box configs.
+    path = f"/ws/{uuid}?ed={EARLY_DATA_MAX}"
     params = {
         "encryption": "none",
         "security": "tls",
         "type": "ws",
+        "headerType": "none",
         "host": domain,
         "path": path,
         "sni": domain,
-        "fp": "chrome",
+        "fp": DEFAULT_FINGERPRINT,
         "alpn": "http/1.1",
+        "allowInsecure": "0",
     }
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{addr}:443?{query}#{quote(remark)}"
@@ -411,6 +449,7 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(keep_alive()),
         asyncio.create_task(cleanup_traffic_task()),
         asyncio.create_task(periodic_save_task()),
+        asyncio.create_task(prune_state_task()),
     ]
     logger.info(f"REN started on port {CONFIG.port}")
     try:
@@ -718,6 +757,26 @@ async def subscription_endpoint(uid: str):
 # ==========================================
 # Core Proxy Protocol Engine (VLESS)
 # ==========================================
+def decode_early_data(subprotocol_header: str | None) -> bytes:
+    """Decode WebSocket 0-RTT early data from the Sec-WebSocket-Protocol header.
+
+    Xray/sing-box carry the first stream chunk as URL-safe base64 (no padding) in
+    that header when `ed=` is set. If the value isn't valid base64 (i.e. it is a
+    genuine subprotocol name), we return b"" and let the normal frame path run,
+    so non-early-data clients are unaffected.
+    """
+    if not subprotocol_header:
+        return b""
+    token = subprotocol_header.split(",")[0].strip()
+    if not token:
+        return b""
+    try:
+        padded = token + "=" * (-len(token) % 4)
+        return base64.urlsafe_b64decode(padded)
+    except Exception:
+        return b""
+
+
 async def parse_vless_header(buffer: bytes, expected_uuid_bytes: bytes):
     if len(buffer) < 24:
         return None
@@ -812,7 +871,7 @@ async def ws_to_tcp(websocket: WebSocket, writer: asyncio.StreamWriter, conn_id:
 
 async def tcp_to_ws(websocket: WebSocket, reader: asyncio.StreamReader, conn_id: str, link_uid: str):
     first = True
-    buf_size = 16384
+    buf_size = DOWNSTREAM_MIN_BUF
     try:
         while True:
             data = await asyncio.wait_for(reader.read(buf_size), IDLE_TIMEOUT)
@@ -820,11 +879,13 @@ async def tcp_to_ws(websocket: WebSocket, reader: asyncio.StreamReader, conn_id:
                 break
             size = len(data)
 
-            # Dynamically adjust buffer based on throughput saturation
-            if size == buf_size and buf_size < 262144:
-                buf_size *= 2
-            elif size < buf_size / 2 and buf_size > 16384:
-                buf_size = max(16384, int(buf_size / 2))
+            # Dynamically adjust buffer based on throughput saturation: grow when we
+            # keep filling the buffer (bulk transfer), shrink when reads run small
+            # (interactive/idle) so we don't pin large buffers per idle connection.
+            if size == buf_size and buf_size < DOWNSTREAM_MAX_BUF:
+                buf_size = min(DOWNSTREAM_MAX_BUF, buf_size * 2)
+            elif size < buf_size / 2 and buf_size > DOWNSTREAM_MIN_BUF:
+                buf_size = max(DOWNSTREAM_MIN_BUF, buf_size // 2)
 
             if not await check_quota(link_uid, size):
                 await websocket.close(code=1008, reason="quota exceeded")
@@ -844,7 +905,14 @@ async def tcp_to_ws(websocket: WebSocket, reader: asyncio.StreamReader, conn_id:
 
 @app.websocket("/ws/{uuid}")
 async def websocket_tunnel(websocket: WebSocket, uuid: str):
-    await websocket.accept()
+    # WebSocket 0-RTT: pull any early data out of the subprotocol header and echo
+    # the token back on accept so strict clients/CDNs finish the handshake.
+    subproto = websocket.headers.get("sec-websocket-protocol")
+    early_data = decode_early_data(subproto)
+    if subproto:
+        await websocket.accept(subprotocol=subproto.split(",")[0].strip())
+    else:
+        await websocket.accept()
     writer = None
     conn_id = None
     client_ip = get_client_ip(websocket)
@@ -866,9 +934,17 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
             expected_bytes = uuid_lib.UUID(uuid).bytes
             link_data["uuid_bytes"] = expected_bytes
 
-        buffer = b""
+        # Seed with 0-RTT early data (may already hold the full VLESS header).
+        buffer = early_data
         command = port = address = initial_payload = None
         while True:
+            if buffer:
+                parsed = await parse_vless_header(buffer, expected_bytes)
+                if parsed is not None:
+                    command, address, port, initial_payload = parsed
+                    break
+                if len(buffer) > 2048:
+                    raise ValueError("Header overflow")
             try:
                 first_msg = await asyncio.wait_for(websocket.receive(), timeout=15.0)
             except asyncio.TimeoutError:
@@ -879,14 +955,7 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
             chunk = first_msg.get("bytes") or (first_msg.get("text") or "").encode()
             if not chunk:
                 continue
-
             buffer += chunk
-            parsed = await parse_vless_header(buffer, expected_bytes)
-            if parsed is not None:
-                command, address, port, initial_payload = parsed
-                break
-            if len(buffer) > 2048:
-                raise ValueError("Header overflow")
 
         # SSRF hardening: refuse internal / metadata destinations.
         if not await destination_allowed(address, port):
@@ -911,6 +980,15 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
             sock = writer.get_extra_info('socket')
             if sock:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # Disable Nagle: tunnelled traffic is already framed, so coalescing
+                # adds latency (esp. for interactive TLS records) with no benefit.
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                # Modest, PaaS-friendly socket buffers for smoother bulk throughput.
+                for opt in (socket.SO_RCVBUF, socket.SO_SNDBUF):
+                    try:
+                        sock.setsockopt(socket.SOL_SOCKET, opt, SOCKET_BUFFER_BYTES)
+                    except OSError:
+                        pass
         except Exception:
             pass
 
@@ -928,6 +1006,10 @@ async def websocket_tunnel(websocket: WebSocket, uuid: str):
         done, pending = await asyncio.wait({task_up, task_down}, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
             t.cancel()
+        # Await the cancelled halves so their teardown (write_eof, etc.) completes
+        # and no orphaned tasks linger between connections.
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     except WebSocketDisconnect:
         pass

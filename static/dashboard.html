@@ -2,449 +2,530 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>REN</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>REN — Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>/* set theme before paint to avoid flash */
+document.documentElement.setAttribute('data-theme',localStorage.getItem('ren_theme')||'dark');
+document.documentElement.lang=localStorage.getItem('ren_lang')||'en';</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-/* Core Base CSS */
-*{margin:0;padding:0;box-sizing:border-box}
-html[data-theme="dark"]{--bg:#0a0a0a;--surface:#141414;--surface2:#1c1c1c;--surface3:#2a2a2a;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.92);--text2:rgba(255,255,255,0.5);--text3:rgba(255,255,255,0.25);--primary:#dc2626;--primary-dim:rgba(220,38,38,0.1);--green:#22c55e;--green-dim:rgba(34,197,94,0.1);--red:#ef4444;--red-dim:rgba(239,68,68,0.08);--sidebar-bg:#0f0f0f;}
-html[data-theme="light"]{--bg:#ffffff;--surface:#ffffff;--surface2:#f9fafb;--surface3:#f3f4f6;--border:rgba(0,0,0,0.06);--text:rgba(0,0,0,0.88);--text2:rgba(0,0,0,0.5);--text3:rgba(0,0,0,0.25);--primary:#16a34a;--primary-dim:rgba(22,163,74,0.06);--green:#16a34a;--green-dim:rgba(22,163,74,0.06);--red:#dc2626;--red-dim:rgba(220,38,38,0.06);--sidebar-bg:#ffffff;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;transition:background 0.3s, color 0.3s;}
-
-/* Responsive Sidebar & Theme Toggle */
-.topbar{display:none; position:fixed; top:0; left:0; right:0; height:60px; background:var(--sidebar-bg); border-bottom:1px solid var(--border); padding:0 16px; align-items:center; z-index:900; justify-content:space-between;}
-.hamburger{background:none; border:none; color:var(--text); font-size:24px; cursor:pointer;}
-.topbar-theme-btn {background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; cursor:pointer;}
-
-.sidebar{width:220px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0; transition:transform 0.3s ease; z-index:1000;}
-.sidebar-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:990;}
-.sidebar-overlay.show{display:block;}
-.sidebar-brand{padding:16px;border-bottom:1px solid var(--border);font-weight:bold;color:var(--primary)}
-.sidebar-nav{flex:1;padding:8px;overflow-y:auto}
-.nav-item{display:block;padding:10px;margin:2px 0;color:var(--text2);text-decoration:none;border-radius:8px;cursor:pointer;border:none;background:none;width:100%;text-align:left;}
-.nav-item:hover, .nav-item.active{background:var(--primary-dim);color:var(--primary);}
-.main{margin-left:220px;flex:1;padding:24px;width:calc(100% - 220px); transition:margin 0.3s ease, width 0.3s ease;}
-
-@media (max-width: 768px) {
-    .topbar { display: flex; }
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .main { margin-left: 0 !important; width: 100% !important; padding-top: 84px; }
-    .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+:root{
+  --bg:#070b10; --bg2:#0a0f16; --panel:#0f1620; --panel2:#131c28; --panel3:#1a2534;
+  --line:rgba(255,255,255,0.07); --line2:rgba(255,255,255,0.12);
+  --txt:rgba(236,244,255,0.94); --txt2:rgba(160,178,199,0.72); --txt3:rgba(120,138,160,0.5);
+  --brand:#2dd4bf; --brand2:#10b981; --brand-ink:#04120f; --brand-dim:rgba(45,212,191,0.12);
+  --glow:rgba(45,212,191,0.3);
+  --ok:#34d399; --ok-dim:rgba(52,211,153,0.13); --warn:#fbbf24;
+  --danger:#fb7185; --danger-dim:rgba(251,113,133,0.12); --violet:#818cf8;
+  --sb:264px; --font:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
 }
+html[data-theme="light"]{
+  --bg:#f1f4f8; --bg2:#e9eef4; --panel:#ffffff; --panel2:#f6f9fc; --panel3:#eef2f7;
+  --line:rgba(15,30,50,0.08); --line2:rgba(15,30,50,0.14);
+  --txt:#0d1b2a; --txt2:#41556b; --txt3:#8598ac;
+  --brand:#0d9488; --brand2:#059669; --brand-ink:#ffffff; --brand-dim:rgba(13,148,136,0.1);
+  --glow:rgba(13,148,136,0.22);
+  --ok:#059669; --ok-dim:rgba(5,150,105,0.1); --warn:#d97706;
+  --danger:#e11d48; --danger-dim:rgba(225,29,72,0.09); --violet:#6366f1;
+}
+html[lang="fa"] body{font-family:'Vazirmatn',var(--font)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;display:flex;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(60vw 40vw at 85% -5%,var(--brand-dim),transparent 60%),
+  radial-gradient(50vw 40vw at 0% 100%,rgba(129,140,248,.08),transparent 60%)}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+a{color:var(--brand)}
+.mono{font-family:var(--mono)}
 
-.pw-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;padding:10px 16px;text-align:center;z-index:3000;font-weight:600;font-size:13px;}
-.pw-banner.show{display:block;}
-.page{display:none;animation:pageIn .4s ease}
+/* ---------- Sidebar ---------- */
+.sidebar{width:var(--sb);position:fixed;inset-block:0;inset-inline-start:0;background:linear-gradient(180deg,var(--panel),var(--bg2));border-inline-end:1px solid var(--line);display:flex;flex-direction:column;z-index:1000;transition:transform .32s cubic-bezier(.4,0,.2,1)}
+.brand{padding:22px 22px 18px;display:flex;align-items:center;gap:12px}
+.brand .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center;box-shadow:0 8px 22px -8px var(--glow);flex-shrink:0}
+.brand h1{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.brand small{display:block;font-size:9.5px;color:var(--txt3);letter-spacing:.22em;text-transform:uppercase;font-weight:700;margin-top:2px}
+.nav{flex:1;padding:10px 14px;overflow-y:auto}
+.nav .lbl{font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.14em;text-transform:uppercase;padding:14px 12px 8px}
+.nav-item{display:flex;align-items:center;gap:13px;width:100%;padding:12px 14px;margin:3px 0;border:none;background:none;color:var(--txt2);border-radius:12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;text-align:start;transition:.2s;position:relative}
+.nav-item svg{width:19px;height:19px;flex-shrink:0}
+.nav-item:hover{background:var(--panel3);color:var(--txt)}
+.nav-item.active{background:var(--brand-dim);color:var(--brand)}
+.nav-item.active::before{content:"";position:absolute;inset-inline-start:0;top:20%;bottom:20%;width:3px;border-radius:3px;background:var(--brand)}
+.sb-foot{padding:16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.sb-status{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--txt2);padding:6px 10px;background:var(--ok-dim);border-radius:10px;font-weight:600}
+.pulse{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pu 2s infinite}
+@keyframes pu{0%{box-shadow:0 0 0 0 var(--ok-dim)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.sb-actions{display:flex;gap:8px}
+
+/* ---------- Topbar (mobile) ---------- */
+.topbar{display:none;position:fixed;inset-block-start:0;inset-inline:0;height:60px;background:var(--panel);border-bottom:1px solid var(--line);padding:0 16px;align-items:center;justify-content:space-between;z-index:900;backdrop-filter:blur(12px)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:990;backdrop-filter:blur(2px)}
+.overlay.show{display:block}
+
+/* ---------- Main ---------- */
+.main{flex:1;margin-inline-start:var(--sb);padding:30px 34px 60px;max-width:1320px;width:calc(100% - var(--sb))}
+.page{display:none;animation:fade .4s ease}
 .page.active{display:block}
-@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:12px;}
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;background:var(--surface3);color:var(--text);font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:8px;}
-.btn-primary{background:var(--primary);color:#fff;}
-.btn-danger{background:var(--red-dim);color:var(--red);}
-.table{width:100%;border-collapse:collapse;font-size:13px;}
-.table th, .table td{padding:10px;text-align:left;border-bottom:1px solid var(--border)}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.phead h2{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.phead p{font-size:13px;color:var(--txt2);margin-top:4px}
 
-/* Form Validation Input Class */
-.form-group{margin-bottom:12px;}
-.form-input, .form-select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text); transition:border 0.3s;}
-.form-input.invalid {border-color: var(--red) !important; box-shadow: 0 0 5px var(--red-dim);}
-.form-input.invalid::placeholder {color: var(--red);}
+/* ---------- Buttons ---------- */
+.btn{padding:10px 16px;border-radius:11px;border:1px solid var(--line2);cursor:pointer;background:var(--panel3);color:var(--txt);font-family:inherit;font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.2s;white-space:nowrap}
+.btn:hover{transform:translateY(-1px);border-color:var(--brand)}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:linear-gradient(120deg,var(--brand),var(--brand2));color:var(--brand-ink);border:none}
+.btn-primary:hover{box-shadow:0 12px 26px -12px var(--glow)}
+.btn-ghost{background:transparent}
+.btn-danger{background:var(--danger-dim);color:var(--danger);border-color:transparent}
+.btn-danger:hover{border-color:var(--danger)}
+.btn-sm{padding:7px 11px;font-size:12.5px;border-radius:9px}
+.icon-btn{width:36px;height:36px;padding:0;border-radius:10px}
 
-/* Toast Notification System */
-.toast{position:fixed;top:20px;right:20px;background:var(--surface2);padding:12px 20px;border-radius:8px;border-left:4px solid var(--green);display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(0,0,0,0.15); transform:translateX(120%); transition:transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index:2000; font-weight:600;}
-.toast.show{transform:translateX(0);}
-.toast.error{border-left-color:var(--red);}
+/* ---------- Cards ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
+.grid{display:grid;gap:16px}
+.stats{grid-template-columns:repeat(4,1fr);margin-bottom:16px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;position:relative;overflow:hidden;transition:.25s}
+.stat:hover{border-color:var(--line2);transform:translateY(-2px)}
+.stat .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:14px;background:var(--brand-dim);color:var(--brand)}
+.stat .ic.v{background:rgba(129,140,248,.13);color:var(--violet)}
+.stat .ic.o{background:var(--ok-dim);color:var(--ok)}
+.stat .k{font-size:11.5px;color:var(--txt2);font-weight:600;letter-spacing:.03em}
+.stat .val{font-size:27px;font-weight:800;letter-spacing:-.02em;margin-top:3px;font-family:var(--mono)}
+.stat .val small{font-size:13px;color:var(--txt3);font-weight:600}
+.split{grid-template-columns:1.6fr 1fr}
+.grow{display:flex;flex-direction:column;gap:14px}
+.cardhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cardhead h3{font-size:15px;font-weight:700}
+.cardhead .tag{font-size:11px;color:var(--txt3);font-family:var(--mono)}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:200;}
-.modal-overlay.show{display:flex}
-.modal{background:var(--surface);padding:24px;border-radius:16px;width:100%;max-width:460px;}
-.modal-close{float:right;cursor:pointer;background:none;border:none;color:var(--text2);font-size:18px;}
+/* gauges */
+.gauge-row{display:flex;gap:18px}
+.gauge{flex:1;text-align:center}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .ring-bg{stroke:var(--panel3)}
+.gauge .ring{stroke:var(--brand);stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)}
+.gauge .gt{font-size:12px;color:var(--txt2);font-weight:600;margin-top:6px}
+.gauge .gv{font-size:20px;font-weight:800;font-family:var(--mono)}
 
-/* Live Transitions */
-.usage-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;margin-top:4px}
-.usage-fill{height:100%;background:var(--primary); transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);}
+/* ---------- Table ---------- */
+.tablewrap{overflow-x:auto;border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:start;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line)}
+td{padding:14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.row:hover td{background:var(--panel2)}
+.lbl-cell{font-weight:700;display:flex;align-items:center;gap:9px}
+.mini{font-size:11px;color:var(--txt3);font-family:var(--mono)}
+.usage{height:6px;background:var(--panel3);border-radius:4px;overflow:hidden;margin-top:6px;min-width:120px}
+.usage>i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .8s cubic-bezier(.4,0,.2,1)}
+.usage>i.hi{background:linear-gradient(90deg,var(--warn),var(--danger))}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:11.5px;font-weight:700}
+.pill.on{background:var(--ok-dim);color:var(--ok)}
+.pill.off{background:var(--danger-dim);color:var(--danger)}
+.pill.exp{background:rgba(251,191,36,.14);color:var(--warn)}
+.pill .d{width:7px;height:7px;border-radius:50%;background:currentColor}
+.rowacts{display:flex;gap:6px;justify-content:flex-end}
+.empty{text-align:center;padding:54px 20px;color:var(--txt3)}
+.empty svg{width:46px;height:46px;opacity:.5;margin-bottom:12px}
 
-/* Action Button Spinners */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner { width:16px; height:16px; border:2px solid transparent; border-top-color:currentColor; border-radius:50%; animation: spin .6s linear infinite; display:inline-block; vertical-align:middle; }
+/* switch */
+.sw{position:relative;width:42px;height:24px;flex-shrink:0}
+.sw input{display:none}
+.sw span{position:absolute;inset:0;background:var(--panel3);border-radius:999px;cursor:pointer;transition:.25s;border:1px solid var(--line2)}
+.sw span::before{content:"";position:absolute;width:16px;height:16px;border-radius:50%;background:var(--txt2);inset-block-start:3px;inset-inline-start:3px;transition:.25s}
+.sw input:checked+span{background:var(--brand);border-color:transparent}
+.sw input:checked+span::before{background:#fff;transform:translateX(18px)}
+html[dir="rtl"] .sw input:checked+span::before{transform:translateX(-18px)}
+
+/* forms */
+.fg{margin-bottom:15px}
+.fg label{display:block;font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:7px}
+.inp,select.inp{width:100%;padding:11px 13px;border:1.5px solid var(--line2);border-radius:11px;background:var(--panel2);color:var(--txt);font-family:inherit;font-size:14px;outline:none;transition:.2s}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-dim)}
+.inp.bad{border-color:var(--danger)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+textarea.inp{resize:vertical;font-family:var(--mono);font-size:13px;line-height:1.7}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(3,7,12,.66);display:none;align-items:center;justify-content:center;z-index:2000;padding:18px;backdrop-filter:blur(4px)}
+.modal-bg.show{display:flex;animation:fade .25s}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:20px;padding:26px;width:100%;max-width:470px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 90px -30px rgba(0,0,0,.8);animation:pop .3s cubic-bezier(.16,1,.3,1)}
+@keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+.modal h3{font-size:18px;font-weight:800;margin-bottom:4px}
+.modal .sub{font-size:12.5px;color:var(--txt2);margin-bottom:20px}
+.mclose{position:absolute;inset-block-start:20px;inset-inline-end:22px;background:var(--panel3);border:none;width:34px;height:34px;border-radius:10px;color:var(--txt2);font-size:18px;cursor:pointer}
+.mhead{position:relative}
+.copybox{display:flex;gap:8px;align-items:stretch;margin-top:6px}
+.copybox textarea{flex:1;min-height:0;height:auto}
+.qr-holder{display:flex;justify-content:center;padding:16px;background:#fff;border-radius:14px;margin:6px auto 4px;width:max-content}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.kv b{color:var(--txt2);font-weight:600}
+.kv span{font-family:var(--mono);text-align:end;word-break:break-all}
+
+/* toast + banner */
+.toast{position:fixed;inset-block-start:20px;inset-inline-end:20px;background:var(--panel);border:1px solid var(--line2);border-inline-start:4px solid var(--ok);padding:13px 18px;border-radius:12px;display:flex;align-items:center;gap:10px;box-shadow:0 16px 40px -14px rgba(0,0,0,.6);transform:translateX(130%);transition:transform .45s cubic-bezier(.16,1,.3,1);z-index:3000;font-weight:600;font-size:13.5px;max-width:340px}
+html[dir="rtl"] .toast{transform:translateX(-130%)}
+.toast.show{transform:translateX(0)}
+.toast.err{border-inline-start-color:var(--danger)}
+.banner{display:none;background:linear-gradient(90deg,var(--danger),#f43f5e);color:#fff;padding:11px 18px;border-radius:12px;margin-bottom:18px;font-weight:700;font-size:13px;align-items:center;gap:10px}
+.banner.show{display:flex}
+.banner button{margin-inline-start:auto;background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+.spin{width:16px;height:16px;border:2px solid transparent;border-top-color:currentColor;border-radius:50%;animation:rot .6s linear infinite;display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+@media (max-width:920px){.stats{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}}
+@media (max-width:768px){
+  .topbar{display:flex}.overlay{}
+  .sidebar{transform:translateX(-100%)}
+  html[dir="rtl"] .sidebar{transform:translateX(100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-inline-start:0;width:100%;padding:78px 18px 50px}
+  .phead h2{font-size:22px}
+}
 </style>
 </head>
 <body>
 
-<script>
-// Theme Initialization Script before DOM load to prevent flashing
-let theme = localStorage.getItem('ren_theme') || 'dark';
-document.documentElement.setAttribute('data-theme', theme);
-</script>
-
-<div class="pw-banner" id="pw-banner">⚠️ You are still using the default password. Please set a strong password in System settings now.</div>
+<div class="banner" id="pwBanner"><span>⚠</span><span data-i18n="pwwarn">You're using the default password. Set a strong one now.</span><button onclick="goPage('system')" data-i18n="fixnow">Fix now</button></div>
 <div class="toast" id="toast"></div>
 
-<!-- Mobile Header -->
-<header class="topbar">
-   <button class="hamburger" onclick="toggleSidebar()">☰</button>
-   <div style="font-weight:bold; color:var(--primary)">REN Panel</div>
-   <button onclick="toggleTheme()" class="topbar-theme-btn" title="Toggle Theme">💡</button>
-</header>
+<!-- Mobile top -->
+<div class="topbar">
+  <button class="btn icon-btn btn-ghost" onclick="toggleSidebar()">☰</button>
+  <div style="display:flex;align-items:center;gap:9px;font-weight:800"><div class="logo" style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand2))"></div>REN</div>
+  <button class="btn icon-btn btn-ghost" onclick="toggleTheme()" id="mThemeBtn">◐</button>
+</div>
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
-<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<!-- Sidebar -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-brand">REN Panel</div>
-  <nav class="sidebar-nav">
-    <button class="nav-item active" data-page="dashboard">Dashboard</button>
-    <button class="nav-item" data-page="inbounds">Inbounds</button>
-    <button class="nav-item" data-page="addresses">Clean IP</button>
-    <button class="nav-item" data-page="domain">Domain</button>
-    <button class="nav-item" data-page="security">System</button>
-  </nav>
-  <div style="padding:16px; border-top:1px solid var(--border);">
-    <div style="display:flex; gap:8px; margin-bottom:8px;" id="sidebar-theme-toggles">
-      <button class="btn" style="flex:1" onclick="toggleTheme()">💡 Theme</button>
+  <div class="brand">
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#04120f" stroke-width="2.4"><path d="M5 13c4-4 10-4 14 0M8 16c2.3-2.2 5.7-2.2 8 0" stroke-linecap="round"/><circle cx="12" cy="19" r="1.6" fill="#04120f" stroke="none"/></svg>
     </div>
-    <button class="btn btn-danger" style="width:100%" onclick="withLoading(this, logout)">Logout</button>
+    <div><h1>REN</h1><small data-i18n="console">Gateway Console</small></div>
+  </div>
+  <nav class="nav">
+    <div class="lbl" data-i18n="monitor">Monitor</div>
+    <button class="nav-item active" data-page="overview" onclick="goPage('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span data-i18n="overview">Overview</span></button>
+    <div class="lbl" data-i18n="manage">Manage</div>
+    <button class="nav-item" data-page="inbounds" onclick="goPage('inbounds')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/><circle cx="8" cy="7" r="1.4" fill="currentColor"/><circle cx="14" cy="12" r="1.4" fill="currentColor"/><circle cx="10" cy="17" r="1.4" fill="currentColor"/></svg>
+      <span data-i18n="inbounds">Inbounds</span></button>
+    <button class="nav-item" data-page="cleanip" onclick="goPage('cleanip')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>
+      <span data-i18n="cleanip">Clean IP</span></button>
+    <button class="nav-item" data-page="domain" onclick="goPage('domain')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l8-4 8 4v10l-8 4-8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10" stroke-linecap="round"/></svg>
+      <span data-i18n="domain">Domain</span></button>
+    <div class="lbl" data-i18n="settings">Settings</div>
+    <button class="nav-item" data-page="system" onclick="goPage('system')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+      <span data-i18n="system">System</span></button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-status"><span class="pulse"></span><span data-i18n="online">Gateway online</span></div>
+    <div class="sb-actions">
+      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="cycleLang()" id="langBtn">EN</button>
+      <button class="btn btn-sm btn-ghost" style="flex:1" onclick="toggleTheme()" id="themeBtn">◐ Theme</button>
+    </div>
+    <button class="btn btn-sm btn-danger" onclick="withLoading(this,logout)" data-i18n="logout">Log out</button>
   </div>
 </aside>
 
 <main class="main">
-  <!-- DASHBOARD -->
-  <section class="page active" id="page-dashboard">
-    <h2>Dashboard</h2><br>
-    <div class="stats-row">
-      <div class="card"><div>Traffic</div><h2 id="s-traffic" style="transition: opacity 0.3s">--</h2></div>
-      <div class="card"><div>Inbounds</div><h2 id="s-links" style="transition: opacity 0.3s">--</h2></div>
-      <div class="card"><div>Uptime</div><h2 id="s-uptime">--</h2></div>
-      <div class="card"><div>Domain</div><div id="s-domain" style="word-break:break-all">--</div></div>
+  <!-- OVERVIEW -->
+  <section class="page active" id="page-overview">
+    <div class="phead"><div><h2 data-i18n="overview">Overview</h2><p data-i18n="overview_sub">Live status of your gateway</p></div>
+      <button class="btn btn-ghost btn-sm" onclick="withLoading(this,refreshAll)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6" stroke-linecap="round"/></svg><span data-i18n="refresh">Refresh</span></button>
     </div>
-    <div class="card"><canvas id="trafficChart" style="height:200px;width:100%"></canvas></div>
+    <div class="grid stats">
+      <div class="stat"><div class="ic">↯</div><div class="k" data-i18n="traffic">Total Traffic</div><div class="val" id="s-traffic">—</div></div>
+      <div class="stat"><div class="ic o">◈</div><div class="k" data-i18n="active">Active Connections</div><div class="val" id="s-conn">—</div></div>
+      <div class="stat"><div class="ic v">⛓</div><div class="k" data-i18n="inbounds">Inbounds</div><div class="val" id="s-links">—</div></div>
+      <div class="stat"><div class="ic">⏱</div><div class="k" data-i18n="uptime">Uptime</div><div class="val mono" id="s-uptime" style="font-size:20px">—</div></div>
+    </div>
+    <div class="grid split">
+      <div class="card">
+        <div class="cardhead"><h3 data-i18n="traffic_12h">Traffic — last 12h</h3><span class="tag" id="chart-total">—</span></div>
+        <div style="height:230px"><canvas id="chart"></canvas></div>
+      </div>
+      <div class="grow">
+        <div class="card">
+          <div class="cardhead"><h3 data-i18n="resources">Resources</h3></div>
+          <div class="gauge-row">
+            <div class="gauge"><svg width="96" height="96" viewBox="0 0 96 96"><circle class="ring-bg" cx="48" cy="48" r="40" fill="none" stroke-width="9"/><circle class="ring" id="cpu-ring" cx="48" cy="48" r="40" fill="none" stroke-width="9" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg><div class="gv" id="cpu-v">—</div><div class="gt" data-i18n="cpu">CPU</div></div>
+            <div class="gauge"><svg width="96" height="96" viewBox="0 0 96 96"><circle class="ring-bg" cx="48" cy="48" r="40" fill="none" stroke-width="9"/><circle class="ring" id="mem-ring" cx="48" cy="48" r="40" fill="none" stroke-width="9" stroke-dasharray="251.3" stroke-dashoffset="251.3" style="stroke:var(--violet)"/></svg><div class="gv" id="mem-v">—</div><div class="gt" data-i18n="memory">Memory</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><h3 data-i18n="endpoint">Endpoint</h3></div>
+          <div class="kv"><b data-i18n="domain">Domain</b><span id="s-domain">—</span></div>
+          <div class="kv"><b data-i18n="requests">Requests</b><span id="s-req">—</span></div>
+          <div class="kv" style="border:none"><b data-i18n="errors">Errors</b><span id="s-err">—</span></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- INBOUNDS -->
   <section class="page" id="page-inbounds">
-    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
-      <h2>Inbounds</h2>
-      <button class="btn btn-primary" onclick="$('#add-modal').classList.add('show')">+ Add</button>
+    <div class="phead"><div><h2 data-i18n="inbounds">Inbounds</h2><p data-i18n="inbounds_sub">Manage tunnels, quotas and access</p></div>
+      <button class="btn btn-primary" onclick="openCreate()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg><span data-i18n="new_inbound">New Inbound</span></button>
     </div>
-    <div class="card" style="padding:0;overflow-x:auto;">
-      <table class="table">
-        <thead><tr><th>Label</th><th>Traffic</th><th>IPs</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody id="links-tbody"></tbody>
-      </table>
+    <div class="card" style="padding:6px">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th data-i18n="th_label">Label</th><th data-i18n="th_usage">Usage</th><th data-i18n="th_ips">Live IPs</th><th data-i18n="th_expiry">Expiry</th><th data-i18n="th_status">Status</th><th style="text-align:end" data-i18n="th_actions">Actions</th></tr></thead>
+          <tbody id="links-body"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
   <!-- CLEAN IP -->
-  <section class="page" id="page-addresses">
-    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
-      <h2>Clean IP List</h2>
-      <button class="btn btn-primary" onclick="$('#add-address-modal').classList.add('show')">+ Add</button>
+  <section class="page" id="page-cleanip">
+    <div class="phead"><div><h2 data-i18n="cleanip">Clean IP</h2><p data-i18n="cleanip_sub">Alternate IPs / domains injected into subscriptions</p></div>
+      <button class="btn btn-primary" onclick="show('#addr-modal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg><span data-i18n="add">Add</span></button>
     </div>
-    <div class="card" id="address-list"></div>
+    <div class="card" id="addr-list" style="padding:8px"></div>
   </section>
 
   <!-- DOMAIN -->
   <section class="page" id="page-domain">
-    <h2>Domain Override</h2><br>
-    <div class="card" style="max-width:500px">
-      <div class="form-group"><label>New Domain</label><input class="form-input" id="domain-input" placeholder="example.com"></div>
-      <button class="btn btn-primary" onclick="withLoading(this, saveDomain)">Save Domain</button>
+    <div class="phead"><div><h2 data-i18n="domain_override">Domain Override</h2><p data-i18n="domain_sub">Force a custom hostname in generated configs</p></div></div>
+    <div class="card" style="max-width:520px">
+      <div class="fg"><label data-i18n="custom_domain">Custom Domain</label><input class="inp" id="domain-input" placeholder="example.com"></div>
+      <p style="font-size:12px;color:var(--txt3);margin-bottom:16px" data-i18n="domain_hint">Leave empty to use the platform's default address. Useful with a Cloudflare-fronted hostname.</p>
+      <button class="btn btn-primary" onclick="withLoading(this,saveDomain)" data-i18n="save">Save</button>
     </div>
   </section>
 
-  <!-- SYSTEM & SECURITY -->
-  <section class="page" id="page-security">
-    <h2>System Settings</h2><br>
-    <div class="card" style="max-width:400px">
-      <h3>Change Password</h3><br>
-      <div class="form-group"><input class="form-input" type="password" id="cur-pw" placeholder="Current password"></div>
-      <div class="form-group"><input class="form-input" type="password" id="new-pw" placeholder="New password (min 8 chars)"></div>
-      <button class="btn btn-primary" onclick="withLoading(this, changePassword)">Update Password</button>
-    </div>
-
-    <div class="card" style="max-width:400px;margin-top:16px">
-      <h3>Backup & Restore</h3><br>
-      <div style="display:flex;gap:8px">
-         <button class="btn" onclick="withLoading(this, exportData)">Export JSON</button>
-         <button class="btn btn-primary" onclick="document.getElementById('import-file').click()">Import JSON</button>
-         <input type="file" id="import-file" style="display:none" onchange="importData(event)" accept=".json">
+  <!-- SYSTEM -->
+  <section class="page" id="page-system">
+    <div class="phead"><div><h2 data-i18n="system">System</h2><p data-i18n="system_sub">Security & data</p></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-width:900px">
+      <div class="card">
+        <div class="cardhead"><h3 data-i18n="change_pw">Change Password</h3></div>
+        <div class="fg"><input class="inp" type="password" id="cur-pw" data-i18n-ph="cur_pw" placeholder="Current password"></div>
+        <div class="fg"><input class="inp" type="password" id="new-pw" data-i18n-ph="new_pw" placeholder="New password (min 8 chars)"></div>
+        <button class="btn btn-primary" onclick="withLoading(this,changePassword)" data-i18n="update">Update</button>
+      </div>
+      <div class="card">
+        <div class="cardhead"><h3 data-i18n="backup">Backup & Restore</h3></div>
+        <p style="font-size:12.5px;color:var(--txt2);margin-bottom:16px" data-i18n="backup_hint">Free-tier storage is ephemeral — export regularly to keep your inbounds safe.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="withLoading(this,exportData)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M4 21h16" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="export">Export</span></button>
+          <button class="btn btn-primary" onclick="document.getElementById('import-file').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 8l5-5 5 5M4 21h16" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="import">Import</span></button>
+          <input type="file" id="import-file" hidden accept=".json" onchange="importData(event)">
+        </div>
       </div>
     </div>
   </section>
 </main>
 
-<!-- MODALS -->
-<div class="modal-overlay" id="add-modal" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal">
-    <button class="modal-close" onclick="$('#add-modal').classList.remove('show')">×</button>
-    <h3>Add Inbound</h3><br>
-    <div class="form-group"><label>Label</label><input class="form-input" id="new-label" placeholder="e.g. Test-Proxy"></div>
-    <div class="form-group"><label>Traffic Limit (GB)</label><input class="form-input" type="number" id="new-limit" placeholder="0 for Unlimited" min="0"></div>
-    <div class="form-group"><label>Max IPs (0=Unlimited)</label><input class="form-input" type="number" id="new-maxconn" placeholder="0 for Unlimited" min="0"></div>
-    <button class="btn btn-primary" style="width:100%" onclick="withLoading(this, createLink)">Create Inbound</button>
+<!-- CREATE / EDIT MODAL -->
+<div class="modal-bg" id="link-modal" onclick="if(event.target===this)hide('#link-modal')">
+  <div class="modal"><div class="mhead"><h3 id="lm-title" data-i18n="new_inbound">New Inbound</h3><button class="mclose" onclick="hide('#link-modal')">×</button></div>
+    <p class="sub" data-i18n="lm_sub">Set a name and optional limits.</p>
+    <input type="hidden" id="lm-uid">
+    <div class="fg"><label data-i18n="f_label">Label</label><input class="inp" id="lm-label" placeholder="e.g. phone-home"></div>
+    <div class="row2">
+      <div class="fg"><label data-i18n="f_limit">Traffic Limit</label><input class="inp" type="number" min="0" id="lm-limit" placeholder="0 = ∞"></div>
+      <div class="fg"><label data-i18n="f_unit">Unit</label><select class="inp" id="lm-unit"><option>GB</option><option>MB</option><option>KB</option></select></div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label data-i18n="f_maxip">Max IPs</label><input class="inp" type="number" min="0" id="lm-maxconn" placeholder="0 = ∞"></div>
+      <div class="fg"><label data-i18n="f_expiry">Expiry (days)</label><input class="inp" type="number" min="0" id="lm-expiry" placeholder="0 = never"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" id="lm-save" onclick="withLoading(this,saveLink)" data-i18n="create">Create Inbound</button>
   </div>
 </div>
 
-<div class="modal-overlay" id="add-address-modal" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal">
-    <button class="modal-close" onclick="$('#add-address-modal').classList.remove('show')">×</button>
-    <h3>Add IPs/Domains</h3><br>
-    <textarea class="form-input" id="new-address" rows="5" placeholder="1.1.1.1&#10;www.bing.com"></textarea><br><br>
-    <button class="btn btn-primary" style="width:100%" onclick="withLoading(this, addAddresses)">Add All</button>
+<!-- DETAIL MODAL -->
+<div class="modal-bg" id="detail-modal" onclick="if(event.target===this)hide('#detail-modal')">
+  <div class="modal"><div class="mhead"><h3 id="d-title">Config</h3><button class="mclose" onclick="hide('#detail-modal')">×</button></div>
+    <p class="sub" data-i18n="d_sub">Scan the QR in v2rayNG / Nekobox, or copy a link.</p>
+    <div class="qr-holder"><div id="qr"></div></div>
+    <div id="d-meta"></div>
+    <label style="font-size:12px;font-weight:700;color:var(--txt2);margin:16px 0 0;display:block" data-i18n="vless_link">VLESS Link</label>
+    <div class="copybox"><textarea class="inp" id="d-vless" rows="3" readonly></textarea><button class="btn btn-primary btn-sm" onclick="copyFrom('d-vless')" data-i18n="copy">Copy</button></div>
+    <label style="font-size:12px;font-weight:700;color:var(--txt2);margin:14px 0 0;display:block" data-i18n="sub_url">Subscription URL</label>
+    <div class="copybox"><textarea class="inp" id="d-sub" rows="2" readonly></textarea><button class="btn btn-primary btn-sm" onclick="copyFrom('d-sub')" data-i18n="copy">Copy</button></div>
+    <div style="display:flex;gap:9px;margin-top:8px"><button class="btn btn-sm" onclick="qrOf(document.getElementById('d-sub').value)" data-i18n="qr_sub">QR of Sub</button></div>
   </div>
 </div>
 
-<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal">
-    <button class="modal-close" onclick="$('#detail-modal').classList.remove('show')">×</button>
-    <h3>Details</h3><br>
-    <div id="detail-content" style="font-size:13px;line-height:1.8; word-break:break-all;"></div>
+<!-- ADD ADDRESS MODAL -->
+<div class="modal-bg" id="addr-modal" onclick="if(event.target===this)hide('#addr-modal')">
+  <div class="modal"><div class="mhead"><h3 data-i18n="add_clean">Add Clean IPs</h3><button class="mclose" onclick="hide('#addr-modal')">×</button></div>
+    <p class="sub" data-i18n="addr_sub">One IP or domain per line.</p>
+    <textarea class="inp" id="new-addr" rows="6" placeholder="104.16.0.1&#10;www.bing.com&#10;speed.cloudflare.com"></textarea>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="withLoading(this,addAddresses)" data-i18n="add_all">Add All</button>
   </div>
 </div>
 
 <script>
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-let allLinks=[], allAddresses=[], statsData={};
+const I18N={
+ en:{console:"Gateway Console",monitor:"Monitor",manage:"Manage",settings:"Settings",overview:"Overview",overview_sub:"Live status of your gateway",inbounds:"Inbounds",inbounds_sub:"Manage tunnels, quotas and access",cleanip:"Clean IP",cleanip_sub:"Alternate IPs / domains injected into subscriptions",domain:"Domain",system:"System",online:"Gateway online",logout:"Log out",refresh:"Refresh",traffic:"Total Traffic",active:"Active Connections",uptime:"Uptime",traffic_12h:"Traffic — last 12h",resources:"Resources",cpu:"CPU",memory:"Memory",endpoint:"Endpoint",requests:"Requests",errors:"Errors",new_inbound:"New Inbound",th_label:"Label",th_usage:"Usage",th_ips:"Live IPs",th_expiry:"Expiry",th_status:"Status",th_actions:"Actions",add:"Add",cleanip_none:"No clean IPs yet.",domain_override:"Domain Override",domain_sub:"Force a custom hostname in generated configs",custom_domain:"Custom Domain",domain_hint:"Leave empty to use the platform's default address. Useful with a Cloudflare-fronted hostname.",save:"Save",system_sub:"Security & data",change_pw:"Change Password",cur_pw:"Current password",new_pw:"New password (min 8 chars)",update:"Update",backup:"Backup & Restore",backup_hint:"Free-tier storage is ephemeral — export regularly to keep your inbounds safe.",export:"Export",import:"Import",lm_sub:"Set a name and optional limits.",f_label:"Label",f_limit:"Traffic Limit",f_unit:"Unit",f_maxip:"Max IPs",f_expiry:"Expiry (days)",create:"Create Inbound",save_changes:"Save Changes",edit_inbound:"Edit Inbound",d_sub:"Scan the QR in v2rayNG / Nekobox, or copy a link.",vless_link:"VLESS Link",sub_url:"Subscription URL",copy:"Copy",qr_sub:"QR of Sub",add_clean:"Add Clean IPs",addr_sub:"One IP or domain per line.",add_all:"Add All",pwwarn:"You're using the default password. Set a strong one now.",fixnow:"Fix now",never:"Never",unlimited:"∞",on:"On",off:"Off",expired:"Expired",copied:"Copied to clipboard",created:"Inbound created",deleted:"Inbound deleted",updated:"Updated",saved:"Saved",pw_updated:"Password updated",pw_short:"New password must be at least 8 characters",fill:"Please fill the required fields",del_confirm:"Delete this inbound? Connected clients will be dropped.",exported:"Backup exported",imported:"Backup imported — reloading…",fail:"Something went wrong",reset_usage:"Reset usage",edit:"Edit",details:"Details",delete:"Delete"},
+ fa:{console:"کنسول دروازه",monitor:"پایش",manage:"مدیریت",settings:"تنظیمات",overview:"نمای کلی",overview_sub:"وضعیت زندهٔ دروازهٔ شما",inbounds:"ورودی‌ها",inbounds_sub:"مدیریت تونل‌ها، سهمیه و دسترسی",cleanip:"آی‌پی تمیز",cleanip_sub:"آی‌پی/دامنه‌های جایگزین در اشتراک‌ها",domain:"دامنه",system:"سیستم",online:"دروازه آنلاین است",logout:"خروج",refresh:"تازه‌سازی",traffic:"ترافیک کل",active:"اتصال‌های فعال",uptime:"مدت فعالیت",traffic_12h:"ترافیک — ۱۲ ساعت اخیر",resources:"منابع",cpu:"پردازنده",memory:"حافظه",endpoint:"نقطهٔ اتصال",requests:"درخواست‌ها",errors:"خطاها",new_inbound:"ورودی جدید",th_label:"برچسب",th_usage:"مصرف",th_ips:"آی‌پی فعال",th_expiry:"انقضا",th_status:"وضعیت",th_actions:"عملیات",add:"افزودن",cleanip_none:"هنوز آی‌پی تمیزی اضافه نشده.",domain_override:"بازنویسی دامنه",domain_sub:"استفاده از دامنهٔ سفارشی در کانفیگ‌ها",custom_domain:"دامنهٔ سفارشی",domain_hint:"خالی بگذارید تا آدرس پیش‌فرض استفاده شود. برای دامنهٔ پشت کلودفلر مفید است.",save:"ذخیره",system_sub:"امنیت و داده",change_pw:"تغییر رمز عبور",cur_pw:"رمز فعلی",new_pw:"رمز جدید (حداقل ۸ کاراکتر)",update:"به‌روزرسانی",backup:"پشتیبان‌گیری و بازیابی",backup_hint:"فضای پلن رایگان موقتی است — برای حفظ ورودی‌ها مرتب خروجی بگیرید.",export:"خروجی",import:"ورودی",lm_sub:"یک نام و محدودیت‌های اختیاری تعیین کنید.",f_label:"برچسب",f_limit:"محدودیت ترافیک",f_unit:"واحد",f_maxip:"حداکثر آی‌پی",f_expiry:"انقضا (روز)",create:"ساخت ورودی",save_changes:"ذخیرهٔ تغییرات",edit_inbound:"ویرایش ورودی",d_sub:"QR را در v2rayNG / Nekobox اسکن کنید یا لینک را کپی کنید.",vless_link:"لینک VLESS",sub_url:"آدرس اشتراک",copy:"کپی",qr_sub:"QR اشتراک",add_clean:"افزودن آی‌پی تمیز",addr_sub:"هر خط یک آی‌پی یا دامنه.",add_all:"افزودن همه",pwwarn:"شما از رمز پیش‌فرض استفاده می‌کنید. همین حالا رمز قوی تنظیم کنید.",fixnow:"رفع کن",never:"هرگز",unlimited:"∞",on:"روشن",off:"خاموش",expired:"منقضی",copied:"در کلیپ‌بورد کپی شد",created:"ورودی ساخته شد",deleted:"ورودی حذف شد",updated:"به‌روزرسانی شد",saved:"ذخیره شد",pw_updated:"رمز عبور به‌روزرسانی شد",pw_short:"رمز جدید باید حداقل ۸ کاراکتر باشد",fill:"لطفاً فیلدهای لازم را پر کنید",del_confirm:"این ورودی حذف شود؟ کاربران متصل قطع می‌شوند.",exported:"پشتیبان خروجی گرفته شد",imported:"پشتیبان بازیابی شد — در حال بارگذاری…",fail:"مشکلی پیش آمد",reset_usage:"صفر کردن مصرف",edit:"ویرایش",details:"جزئیات",delete:"حذف"}
+};
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+let lang=localStorage.getItem('ren_lang')||'en',theme=localStorage.getItem('ren_theme')||'dark';
+let allLinks=[],statsData={},chart,qr;
+const T=k=>(I18N[lang][k]||I18N.en[k]||k);
 
-function toggleSidebar() {
-    $('#sidebar').classList.toggle('open');
-    $('.sidebar-overlay').classList.toggle('show');
+function applyLang(l){lang=l;document.documentElement.lang=l;document.body.dir=l==='fa'?'rtl':'ltr';
+  $$('[data-i18n]').forEach(e=>{const v=T(e.dataset.i18n);if(v)e.textContent=v});
+  $$('[data-i18n-ph]').forEach(e=>{const v=T(e.dataset.i18nPh);if(v)e.placeholder=v});
+  $('#langBtn').textContent=l.toUpperCase();localStorage.setItem('ren_lang',l);
+  if(statsData.uptime)renderStats();loadLinks();}
+function cycleLang(){applyLang(lang==='en'?'fa':'en')}
+function applyTheme(t){theme=t;document.documentElement.setAttribute('data-theme',t);
+  const g=t==='dark'?'◐':'☀';$('#themeBtn').textContent=g+' Theme';$('#mThemeBtn').textContent=g;
+  localStorage.setItem('ren_theme',t);if(chart)drawChart();}
+function toggleTheme(){applyTheme(theme==='dark'?'light':'dark')}
+applyTheme(theme);applyLang(lang);
+
+function toggleSidebar(){$('#sidebar').classList.toggle('open');$('#overlay').classList.toggle('show')}
+function goPage(p){
+  $$('.page').forEach(x=>x.classList.remove('active'));$('#page-'+p).classList.add('active');
+  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.page===p));
+  if(window.innerWidth<=768&&$('#sidebar').classList.contains('open'))toggleSidebar();
+}
+function show(s){$(s).classList.add('show')}function hide(s){$(s).classList.remove('show')}
+function toast(msg,err){const t=$('#toast');t.innerHTML=(err?'✕ ':'✓ ')+msg;t.className='toast'+(err?' err':'');void t.offsetWidth;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3200)}
+async function withLoading(btn,fn){const h=btn.innerHTML;btn.innerHTML='<span class="spin"></span>';btn.disabled=true;try{await fn()}catch(e){console.error(e)}finally{btn.innerHTML=h;btn.disabled=false}}
+function fmt(b){b=+b||0;return b>=1073741824?(b/1073741824).toFixed(2)+' GB':b>=1048576?(b/1048576).toFixed(1)+' MB':b>=1024?(b/1024).toFixed(1)+' KB':b+' B'}
+function num(n){return (n||0).toLocaleString(lang==='fa'?'fa-IR':'en-US')}
+
+async function copyText(v){try{await navigator.clipboard.writeText(v)}catch(_){const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(e){}t.remove()}toast(T('copied'))}
+function copyFrom(id){copyText(document.getElementById(id).value)}
+
+// ---- stats ----
+function ring(id,pct){const c=$('#'+id),len=251.3;c.style.strokeDashoffset=len-(len*Math.min(100,pct||0)/100);
+  if(id==='cpu-ring')c.style.stroke=pct>85?'var(--danger)':pct>60?'var(--warn)':'var(--brand)';}
+function renderStats(){const s=statsData;
+  $('#s-traffic').innerHTML=`${(s.total_traffic_mb??0)>=1024?(s.total_traffic_mb/1024).toFixed(2)+' <small>GB</small>':num(Math.round(s.total_traffic_mb||0))+' <small>MB</small>'}`;
+  $('#s-conn').textContent=num(s.active_connections);
+  $('#s-links').textContent=num(s.links_count);
+  $('#s-uptime').textContent=s.uptime||'—';
+  $('#s-domain').textContent=s.domain||'—';
+  $('#s-req').textContent=num(s.total_requests);
+  $('#s-err').textContent=num(s.total_errors);
+  $('#cpu-v').textContent=Math.round(s.cpu_percent||0)+'%';$('#mem-v').textContent=Math.round(s.memory_percent||0)+'%';
+  ring('cpu-ring',s.cpu_percent);ring('mem-ring',s.memory_percent);
+}
+async function loadStats(){try{const r=await fetch('/stats');if(!r.ok)return;statsData=await r.json();renderStats();drawChart()}catch(e){}}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawChart(){const ctx=$('#chart');if(!ctx||!statsData.hourly_traffic)return;
+  const sorted=Object.entries(statsData.hourly_traffic).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+  const labels=sorted.map(e=>e[0].split(' ')[1]||e[0]),data=sorted.map(e=>+(e[1]/1048576).toFixed(1));
+  $('#chart-total').textContent=data.reduce((a,b)=>a+b,0).toFixed(1)+' MB';
+  const brand=css('--brand'),txt=css('--txt3'),line=css('--line');
+  if(chart)chart.destroy();
+  const g=ctx.getContext('2d').createLinearGradient(0,0,0,230);g.addColorStop(0,brand+'cc');g.addColorStop(1,brand+'14');
+  chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:g,borderRadius:6,maxBarThickness:34}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' MB'}}},
+    scales:{x:{grid:{display:false},ticks:{color:txt,font:{size:10}}},y:{grid:{color:line},ticks:{color:txt,font:{size:10}},beginAtZero:true}}}});
 }
 
-function toggleTheme(){
-    theme = theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ren_theme', theme);
+// ---- links ----
+async function loadLinks(){try{const r=await fetch('/api/links');const d=await r.json();allLinks=d.links||[];renderLinks()}catch(e){}}
+function statusPill(l){if(l.expired)return `<span class="pill exp"><span class="d"></span>${T('expired')}</span>`;
+  return l.active?`<span class="pill on"><span class="d"></span>${T('on')}</span>`:`<span class="pill off"><span class="d"></span>${T('off')}</span>`}
+function expiryText(l){if(!l.expiry)return `<span class="mini">${T('never')}</span>`;const d=new Date(l.expiry);return `<span class="mini">${d.toLocaleDateString(lang==='fa'?'fa-IR':'en-US')}</span>`}
+function renderLinks(){const b=$('#links-body');
+  if(!allLinks.length){b.innerHTML=`<tr><td colspan="6"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg><div>${T('inbounds_sub')}</div></div></td></tr>`;return}
+  b.innerHTML=allLinks.map(l=>{const lim=l.limit_bytes,pct=lim?Math.min(100,l.used_bytes/lim*100):0;
+    return `<tr class="row">
+      <td><div class="lbl-cell">${esc(l.label)}</div><div class="mini">${l.uuid.slice(0,8)}…</div></td>
+      <td><div class="mini">${fmt(l.used_bytes)} / ${lim?fmt(lim):'∞'}</div><div class="usage"><i class="${pct>85?'hi':''}" style="width:${pct}%"></i></div></td>
+      <td><span class="mono">${num(l.current_connections)}</span><span class="mini"> / ${l.max_connections||'∞'}</span></td>
+      <td>${expiryText(l)}</td>
+      <td><label class="sw"><input type="checkbox" ${l.active?'checked':''} onchange="toggleActive('${l.uuid}',this.checked)"><span></span></label> ${statusPill(l)}</td>
+      <td><div class="rowacts">
+        <button class="btn btn-sm icon-btn" title="${T('details')}" onclick="showDetail('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z" fill="currentColor" stroke="none" opacity=".5"/></svg></button>
+        <button class="btn btn-sm icon-btn" title="${T('edit')}" onclick="openEdit('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn btn-sm icon-btn btn-danger" title="${T('delete')}" onclick="deleteLink('${l.uuid}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div></td></tr>`}).join('');
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function openCreate(){$('#lm-title').textContent=T('new_inbound');$('#lm-save').textContent=T('create');
+  $('#lm-uid').value='';$('#lm-label').value='';$('#lm-limit').value='';$('#lm-unit').value='GB';$('#lm-maxconn').value='';$('#lm-expiry').value='';show('#link-modal')}
+function openEdit(uid){const l=allLinks.find(x=>x.uuid===uid);if(!l)return;
+  $('#lm-title').textContent=T('edit_inbound');$('#lm-save').textContent=T('save_changes');
+  $('#lm-uid').value=uid;$('#lm-label').value=l.label;
+  $('#lm-limit').value=l.limit_bytes?(l.limit_bytes/1073741824):'';$('#lm-unit').value='GB';
+  $('#lm-maxconn').value=l.max_connections||'';$('#lm-expiry').value='';show('#link-modal')}
+async function saveLink(){const uid=$('#lm-uid').value,label=$('#lm-label').value.trim(),li=$('#lm-label');
+  if(!label){li.classList.add('bad');toast(T('fill'),true);return}li.classList.remove('bad');
+  const body={label,limit_value:$('#lm-limit').value||0,limit_unit:$('#lm-unit').value,max_connections:$('#lm-maxconn').value||0};
+  const ed=$('#lm-expiry').value;if(ed!=='')body.expiry_days=ed;
+  try{
+    if(uid){await fetch('/api/links/'+uid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});toast(T('updated'))}
+    else{const r=await fetch('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;toast(T('created'))}
+    hide('#link-modal');loadLinks();loadStats();
+  }catch(e){toast(T('fail'),true)}
+}
+async function toggleActive(uid,active){try{await fetch('/api/links/'+uid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});const l=allLinks.find(x=>x.uuid===uid);if(l)l.active=active;renderLinks()}catch(e){toast(T('fail'),true)}}
+async function deleteLink(uid){if(!confirm(T('del_confirm')))return;try{await fetch('/api/links/'+uid,{method:'DELETE'});toast(T('deleted'));loadLinks();loadStats()}catch(e){toast(T('fail'),true)}}
+
+function qrOf(text){$('#qr').innerHTML='';qr=new QRCode($('#qr'),{text,width:180,height:180,correctLevel:QRCode.CorrectLevel.M})}
+function showDetail(uid){const l=allLinks.find(x=>x.uuid===uid);if(!l)return;
+  $('#d-title').textContent=l.label;
+  const sub=`${location.origin}/sub/${l.uuid}`;
+  $('#d-vless').value=l.vless_link;$('#d-sub').value=sub;
+  $('#d-meta').innerHTML=`<div class="kv"><b>UUID</b><span>${l.uuid}</span></div>
+    <div class="kv"><b>${T('th_ips')}</b><span>${(l.connected_ips&&l.connected_ips.length)?l.connected_ips.join(', '):'—'}</span></div>
+    <div class="kv" style="border:none"><b>${T('th_usage')}</b><span>${fmt(l.used_bytes)} / ${l.limit_bytes?fmt(l.limit_bytes):'∞'}</span></div>`;
+  qrOf(l.vless_link);show('#detail-modal');
 }
 
-$$('.nav-item').forEach(el=>el.addEventListener('click',()=>{
-  $$('.page').forEach(p=>p.classList.remove('active'));
-  $(`#page-${el.dataset.page}`).classList.add('active');
-  $$('.nav-item').forEach(n=>n.classList.remove('active'));
-  el.classList.add('active');
-  if(window.innerWidth <= 768) toggleSidebar(); // Close sidebar on mobile click
-}));
+// ---- clean ip ----
+async function loadAddresses(){try{const r=await fetch('/api/addresses');const d=await r.json();const list=d.addresses||[];
+  $('#addr-list').innerHTML=list.length?list.map((a,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)">
+    <span class="mono">${esc(a)}</span><button class="btn btn-sm btn-danger icon-btn" onclick="delAddress(${i})">×</button></div>`).join('')
+    :`<div class="empty">${T('cleanip_none')}</div>`}catch(e){}}
+async function addAddresses(){const lines=$('#new-addr').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){toast(T('fill'),true);return}
+  for(const a of lines)await fetch('/api/addresses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:a})});
+  $('#new-addr').value='';hide('#addr-modal');toast(T('saved'));loadAddresses()}
+async function delAddress(i){await fetch('/api/addresses/'+i,{method:'DELETE'});loadAddresses()}
 
-function goToPage(page){
-  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
-  if(nav) nav.click();
-}
+// ---- domain ----
+async function saveDomain(){await fetch('/api/domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:$('#domain-input').value})});toast(T('saved'));loadStats();loadLinks()}
+async function loadDomain(){try{const r=await fetch('/api/domain');const d=await r.json();$('#domain-input').value=d.domain||''}catch(e){}}
 
-function toast(msg, err=false){
-    const t = $('#toast');
-    t.innerHTML = (err ? '❌ ' : '✅ ') + msg;
-    t.className = 'toast ' + (err ? 'error' : '');
-    void t.offsetWidth; // force reflow for css animation restart
-    t.classList.add('show');
-    clearTimeout(t.timer);
-    t.timer = setTimeout(() => t.classList.remove('show'), 3000);
-}
+// ---- system ----
+async function changePassword(){const c=$('#cur-pw'),n=$('#new-pw');if(!c.value||n.value.length<8){toast(T('pw_short'),true);return}
+  const r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:c.value,new_password:n.value})});
+  if(r.ok){toast(T('pw_updated'));c.value='';n.value='';$('#pwBanner').classList.remove('show')}
+  else{let m=T('fail');try{const j=await r.json();if(j.detail)m=j.detail}catch(_){}toast(m,true)}}
+async function exportData(){try{const r=await fetch('/api/backup');const d=await r.json();const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ren_backup.json';a.click();toast(T('exported'))}catch(e){toast(T('fail'),true)}}
+function importData(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=async ev=>{try{const data=JSON.parse(ev.target.result);const r=await fetch('/api/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(r.ok){toast(T('imported'));setTimeout(()=>location.reload(),1000)}else throw 0}catch(err){toast(T('fail'),true)}};rd.readAsText(f)}
 
-async function withLoading(btn, asyncFn) {
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<div class="spinner"></div>';
-    btn.disabled = true;
-    try { await asyncFn(); }
-    catch(e) { console.error(e); }
-    finally { btn.innerHTML = originalHtml; btn.disabled = false; }
-}
+async function checkAccount(){try{const r=await fetch('/api/me');const d=await r.json();
+  if(d&&d.must_change_password){$('#pwBanner').classList.add('show');goPage('system')}else $('#pwBanner').classList.remove('show')}catch(e){}}
+async function logout(){await fetch('/api/logout',{method:'POST'});location.href='/login'}
+async function refreshAll(){await Promise.all([loadStats(),loadLinks(),loadAddresses()])}
 
-function fmtBytes(b){return b>1073741824?(b/1073741824).toFixed(2)+' GB':b>1048576?(b/1048576).toFixed(2)+' MB':(b/1024).toFixed(1)+' KB'}
-
-async function logout(){
-    await fetch('/api/logout',{method:'POST'});
-    location.href='/login';
-}
-
-async function checkAccount(){
-    try{
-        const r=await fetch('/api/me'); const d=await r.json();
-        if(d && d.must_change_password){
-            $('#pw-banner').classList.add('show');
-            goToPage('security');
-        } else {
-            $('#pw-banner').classList.remove('show');
-        }
-    }catch(e){}
-}
-
-async function loadStats(){
-    try{
-        const r=await fetch('/stats'); statsData=await r.json();
-
-        $('#s-traffic').style.opacity = 0; $('#s-links').style.opacity = 0;
-        setTimeout(()=>{
-            $('#s-traffic').textContent = statsData.total_traffic_mb+' MB';
-            $('#s-links').textContent = statsData.links_count;
-            $('#s-uptime').textContent = statsData.uptime;
-            $('#s-domain').textContent = statsData.domain || 'Not Set';
-            $('#s-traffic').style.opacity = 1; $('#s-links').style.opacity = 1;
-        }, 150);
-
-        updateChart();
-    }catch(e){}
-}
-
-async function loadLinks(){
-    try{
-        const r=await fetch('/api/links'); const d=await r.json(); allLinks=d.links;
-        $('#links-tbody').innerHTML = allLinks.map(l=>{
-            const u=l.used_bytes, lim=l.limit_bytes, pct=lim?Math.min(100,u/lim*100):0;
-            return `<tr>
-              <td>${l.label}</td>
-              <td>${fmtBytes(u)} / ${lim?fmtBytes(lim):'∞'} <div class="usage-bar"><div class="usage-fill" style="width:${pct}%"></div></div></td>
-              <td>${l.current_connections}/${l.max_connections||'∞'}</td>
-              <td>${l.active?'<span style="color:var(--green)">On</span>':'<span style="color:var(--red)">Off</span>'}</td>
-              <td>
-                <button class="btn btn-primary" onclick="showDetail('${l.uuid}')">Info</button>
-                <button class="btn btn-danger" onclick="deleteLink('${l.uuid}')">x</button>
-              </td>
-            </tr>`;
-        }).join('');
-    }catch(e){}
-}
-
-function showDetail(uid){
-    const l=allLinks.find(x=>x.uuid===uid);
-    $('#detail-content').innerHTML = `
-      <b>UUID:</b> ${l.uuid}<br><br>
-      <b>Connected IPs:</b> ${l.connected_ips && l.connected_ips.length ? l.connected_ips.join(', ') : 'None'}<br><br>
-      <b>VLESS Link:</b><br>
-      <textarea class="form-input" rows="4" readonly onclick="this.select();document.execCommand('copy');toast('Copied!')">${l.vless_link}</textarea><br><br>
-      <b>Sub URL:</b><br>
-      <textarea class="form-input" rows="2" readonly onclick="this.select();document.execCommand('copy');toast('Copied!')">https://${location.host}/sub/${l.uuid}</textarea>
-    `;
-    $('#detail-modal').classList.add('show');
-}
-
-async function createLink(){
-    const labelInput = $('#new-label');
-    const limitInput = $('#new-limit');
-    let valid = true;
-
-    if(!labelInput.value.trim()){ labelInput.classList.add('invalid'); valid=false; } else { labelInput.classList.remove('invalid'); }
-    if(limitInput.value < 0 || limitInput.value === ''){ limitInput.classList.add('invalid'); valid=false; } else { limitInput.classList.remove('invalid'); }
-
-    if(!valid) { toast('Please fill fields correctly', true); return; }
-
-    try{
-        const r=await fetch('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({label:labelInput.value, limit_value:limitInput.value, max_connections:$('#new-maxconn').value||0})});
-        if(!r.ok) throw new Error();
-        toast('Inbound Created Successfully!');
-        $('#add-modal').classList.remove('show');
-        labelInput.value=''; limitInput.value='';
-        loadLinks(); loadStats();
-    }catch(e){toast('Failed to create inbound',true)}
-}
-
-async function deleteLink(uid){
-    if(!confirm('Are you sure you want to delete this inbound?')) return;
-    await fetch(`/api/links/${uid}`,{method:'DELETE'});
-    toast('Inbound Deleted');
-    loadLinks(); loadStats();
-}
-
-async function loadAddresses(){
-    const r=await fetch('/api/addresses'); const d=await r.json();
-    $('#address-list').innerHTML = d.addresses.map((a,i)=>`
-      <div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border); align-items:center;">
-        <span>${a}</span> <button class="btn btn-danger" onclick="deleteAddress(${i})">x</button>
-      </div>`).join('');
-}
-
-async function addAddresses(){
-    const lines = $('#new-address').value.split('\n').map(l=>l.trim()).filter(l=>l);
-    if(lines.length === 0) return toast('No addresses provided', true);
-    for(const a of lines) await fetch('/api/addresses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:a})});
-    $('#add-address-modal').classList.remove('show');
-    $('#new-address').value = '';
-    toast('Addresses added successfully');
-    loadAddresses();
-}
-async function deleteAddress(i){ await fetch(`/api/addresses/${i}`,{method:'DELETE'}); loadAddresses(); }
-
-async function saveDomain(){
-    const input = $('#domain-input');
-    await fetch('/api/domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:input.value})});
-    toast('Domain Saved'); loadStats(); loadLinks();
-}
-
-async function changePassword(){
-    const curr = $('#cur-pw'); const nw = $('#new-pw');
-    if(!curr.value || nw.value.length < 8) return toast('New password must be at least 8 characters', true);
-
-    const r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({current_password:curr.value, new_password:nw.value})});
-    if(r.ok){ toast('Password Updated'); curr.value=''; nw.value=''; $('#pw-banner').classList.remove('show'); } else {
-        let msg='Incorrect Current Password';
-        try{const j=await r.json(); if(j.detail) msg=j.detail;}catch(_){}
-        toast(msg,true);
-    }
-}
-
-async function exportData() {
-    try {
-        const r = await fetch('/api/backup'); const d = await r.json();
-        const blob = new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ren_backup.json';
-        a.click(); toast('Backup Exported');
-    } catch(e) { toast('Export failed', true); }
-}
-
-async function importData(e) {
-    const file = e.target.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = async(ev) => {
-        try {
-            const data = JSON.parse(ev.target.result);
-            const r = await fetch('/api/backup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            if(r.ok) { toast('Backup Imported! Reloading...'); setTimeout(()=>location.reload(), 1000); }
-        } catch(err) { toast('Import Failed', true); }
-    };
-    reader.readAsText(file);
-}
-
-let chart;
-function updateChart(){
-    const ctx=$('#trafficChart'); if(!ctx)return;
-    const ht=statsData.hourly_traffic; if(!ht)return;
-    const sorted=Object.entries(ht).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
-
-    const labels = sorted.map(e=>e[0].split(' ')[1]);
-    const data = sorted.map(e=>Math.round(e[1]/1048576));
-
-    if(!chart) {
-        chart = new Chart(ctx,{
-            type:'bar',
-            data:{ labels: labels, datasets:[{ label:'Traffic', data: data, backgroundColor:'#dc2626', borderRadius: 4 }] },
-            options:{
-                responsive:true, maintainAspectRatio:false,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) { return context.parsed.y + ' MB at ' + context.label; }
-                        }
-                    }
-                }
-            }
-        });
-    } else {
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = data;
-        chart.update();
-    }
-}
-
-// Remove input validation red border on focus
-$$('.form-input').forEach(el => el.addEventListener('focus', () => el.classList.remove('invalid')));
-
-checkAccount();
-loadStats(); loadLinks(); loadAddresses();
-setInterval(loadStats, 10000);
+checkAccount();loadStats();loadLinks();loadAddresses();loadDomain();
+setInterval(loadStats,10000);
 </script>
 </body>
 </html>
