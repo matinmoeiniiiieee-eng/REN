@@ -6,7 +6,19 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
+      # No default password is shipped. Render prompts you to enter a value on
+      # first deploy. Choose a strong password (min 8 chars). If you leave it
+      # unset, the app boots with a temporary "admin" password and forces a
+      # change on first login.
       - key: ADMIN_PASSWORD
-        value: admin
+        sync: false
       - key: SECRET_KEY
         generateValue: true
+      # Block the tunnel from reaching private/loopback/metadata IPs (recommended).
+      # Set to "true" only if you knowingly need internal access.
+      - key: ALLOW_PRIVATE_RANGES
+        value: "false"
+    # NOTE: Render's free plan has an ephemeral filesystem, so the JSON
+    # persistence file does NOT survive redeploys or cold starts. For durable
+    # storage, attach a persistent disk (paid) at ./data, or wire up an external
+    # database. See README for details.

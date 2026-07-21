@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REN</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* Core Base CSS */
+*{margin:0;padding:0;box-sizing:border-box}
+html[data-theme="dark"]{--bg:#0a0a0a;--surface:#141414;--surface2:#1c1c1c;--surface3:#2a2a2a;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.92);--text2:rgba(255,255,255,0.5);--text3:rgba(255,255,255,0.25);--primary:#dc2626;--primary-dim:rgba(220,38,38,0.1);--green:#22c55e;--green-dim:rgba(34,197,94,0.1);--red:#ef4444;--red-dim:rgba(239,68,68,0.08);--sidebar-bg:#0f0f0f;}
+html[data-theme="light"]{--bg:#ffffff;--surface:#ffffff;--surface2:#f9fafb;--surface3:#f3f4f6;--border:rgba(0,0,0,0.06);--text:rgba(0,0,0,0.88);--text2:rgba(0,0,0,0.5);--text3:rgba(0,0,0,0.25);--primary:#16a34a;--primary-dim:rgba(22,163,74,0.06);--green:#16a34a;--green-dim:rgba(22,163,74,0.06);--red:#dc2626;--red-dim:rgba(220,38,38,0.06);--sidebar-bg:#ffffff;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;transition:background 0.3s, color 0.3s;}
+
+/* Responsive Sidebar & Theme Toggle */
+.topbar{display:none; position:fixed; top:0; left:0; right:0; height:60px; background:var(--sidebar-bg); border-bottom:1px solid var(--border); padding:0 16px; align-items:center; z-index:900; justify-content:space-between;}
+.hamburger{background:none; border:none; color:var(--text); font-size:24px; cursor:pointer;}
+.topbar-theme-btn {background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; cursor:pointer;}
+
+.sidebar{width:220px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0; transition:transform 0.3s ease; z-index:1000;}
+.sidebar-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:990;}
+.sidebar-overlay.show{display:block;}
+.sidebar-brand{padding:16px;border-bottom:1px solid var(--border);font-weight:bold;color:var(--primary)}
+.sidebar-nav{flex:1;padding:8px;overflow-y:auto}
+.nav-item{display:block;padding:10px;margin:2px 0;color:var(--text2);text-decoration:none;border-radius:8px;cursor:pointer;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover, .nav-item.active{background:var(--primary-dim);color:var(--primary);}
+.main{margin-left:220px;flex:1;padding:24px;width:calc(100% - 220px); transition:margin 0.3s ease, width 0.3s ease;}
+
+@media (max-width: 768px) {
+    .topbar { display: flex; }
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0 !important; width: 100% !important; padding-top: 84px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+.pw-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;padding:10px 16px;text-align:center;z-index:3000;font-weight:600;font-size:13px;}
+.pw-banner.show{display:block;}
+.page{display:none;animation:pageIn .4s ease}
+.page.active{display:block}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:12px;}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;background:var(--surface3);color:var(--text);font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:8px;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-danger{background:var(--red-dim);color:var(--red);}
+.table{width:100%;border-collapse:collapse;font-size:13px;}
+.table th, .table td{padding:10px;text-align:left;border-bottom:1px solid var(--border)}
+
+/* Form Validation Input Class */
+.form-group{margin-bottom:12px;}
+.form-input, .form-select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text); transition:border 0.3s;}
+.form-input.invalid {border-color: var(--red) !important; box-shadow: 0 0 5px var(--red-dim);}
+.form-input.invalid::placeholder {color: var(--red);}
+
+/* Toast Notification System */
+.toast{position:fixed;top:20px;right:20px;background:var(--surface2);padding:12px 20px;border-radius:8px;border-left:4px solid var(--green);display:flex;align-items:center;gap:10px;box-shadow:0 4px 12px rgba(0,0,0,0.15); transform:translateX(120%); transition:transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index:2000; font-weight:600;}
+.toast.show{transform:translateX(0);}
+.toast.error{border-left-color:var(--red);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:200;}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);padding:24px;border-radius:16px;width:100%;max-width:460px;}
+.modal-close{float:right;cursor:pointer;background:none;border:none;color:var(--text2);font-size:18px;}
+
+/* Live Transitions */
+.usage-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;margin-top:4px}
+.usage-fill{height:100%;background:var(--primary); transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);}
+
+/* Action Button Spinners */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width:16px; height:16px; border:2px solid transparent; border-top-color:currentColor; border-radius:50%; animation: spin .6s linear infinite; display:inline-block; vertical-align:middle; }
+</style>
+</head>
+<body>
+
+<script>
+// Theme Initialization Script before DOM load to prevent flashing
+let theme = localStorage.getItem('ren_theme') || 'dark';
+document.documentElement.setAttribute('data-theme', theme);
+</script>
+
+<div class="pw-banner" id="pw-banner">⚠️ You are still using the default password. Please set a strong password in System settings now.</div>
+<div class="toast" id="toast"></div>
+
+<!-- Mobile Header -->
+<header class="topbar">
+   <button class="hamburger" onclick="toggleSidebar()">☰</button>
+   <div style="font-weight:bold; color:var(--primary)">REN Panel</div>
+   <button onclick="toggleTheme()" class="topbar-theme-btn" title="Toggle Theme">💡</button>
+</header>
+
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">REN Panel</div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" data-page="dashboard">Dashboard</button>
+    <button class="nav-item" data-page="inbounds">Inbounds</button>
+    <button class="nav-item" data-page="addresses">Clean IP</button>
+    <button class="nav-item" data-page="domain">Domain</button>
+    <button class="nav-item" data-page="security">System</button>
+  </nav>
+  <div style="padding:16px; border-top:1px solid var(--border);">
+    <div style="display:flex; gap:8px; margin-bottom:8px;" id="sidebar-theme-toggles">
+      <button class="btn" style="flex:1" onclick="toggleTheme()">💡 Theme</button>
+    </div>
+    <button class="btn btn-danger" style="width:100%" onclick="withLoading(this, logout)">Logout</button>
+  </div>
+</aside>
+
+<main class="main">
+  <!-- DASHBOARD -->
+  <section class="page active" id="page-dashboard">
+    <h2>Dashboard</h2><br>
+    <div class="stats-row">
+      <div class="card"><div>Traffic</div><h2 id="s-traffic" style="transition: opacity 0.3s">--</h2></div>
+      <div class="card"><div>Inbounds</div><h2 id="s-links" style="transition: opacity 0.3s">--</h2></div>
+      <div class="card"><div>Uptime</div><h2 id="s-uptime">--</h2></div>
+      <div class="card"><div>Domain</div><div id="s-domain" style="word-break:break-all">--</div></div>
+    </div>
+    <div class="card"><canvas id="trafficChart" style="height:200px;width:100%"></canvas></div>
+  </section>
+
+  <!-- INBOUNDS -->
+  <section class="page" id="page-inbounds">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <h2>Inbounds</h2>
+      <button class="btn btn-primary" onclick="$('#add-modal').classList.add('show')">+ Add</button>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;">
+      <table class="table">
+        <thead><tr><th>Label</th><th>Traffic</th><th>IPs</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="links-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CLEAN IP -->
+  <section class="page" id="page-addresses">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <h2>Clean IP List</h2>
+      <button class="btn btn-primary" onclick="$('#add-address-modal').classList.add('show')">+ Add</button>
+    </div>
+    <div class="card" id="address-list"></div>
+  </section>
+
+  <!-- DOMAIN -->
+  <section class="page" id="page-domain">
+    <h2>Domain Override</h2><br>
+    <div class="card" style="max-width:500px">
+      <div class="form-group"><label>New Domain</label><input class="form-input" id="domain-input" placeholder="example.com"></div>
+      <button class="btn btn-primary" onclick="withLoading(this, saveDomain)">Save Domain</button>
+    </div>
+  </section>
+
+  <!-- SYSTEM & SECURITY -->
+  <section class="page" id="page-security">
+    <h2>System Settings</h2><br>
+    <div class="card" style="max-width:400px">
+      <h3>Change Password</h3><br>
+      <div class="form-group"><input class="form-input" type="password" id="cur-pw" placeholder="Current password"></div>
+      <div class="form-group"><input class="form-input" type="password" id="new-pw" placeholder="New password (min 8 chars)"></div>
+      <button class="btn btn-primary" onclick="withLoading(this, changePassword)">Update Password</button>
+    </div>
+
+    <div class="card" style="max-width:400px;margin-top:16px">
+      <h3>Backup & Restore</h3><br>
+      <div style="display:flex;gap:8px">
+         <button class="btn" onclick="withLoading(this, exportData)">Export JSON</button>
+         <button class="btn btn-primary" onclick="document.getElementById('import-file').click()">Import JSON</button>
+         <input type="file" id="import-file" style="display:none" onchange="importData(event)" accept=".json">
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="add-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <button class="modal-close" onclick="$('#add-modal').classList.remove('show')">×</button>
+    <h3>Add Inbound</h3><br>
+    <div class="form-group"><label>Label</label><input class="form-input" id="new-label" placeholder="e.g. Test-Proxy"></div>
+    <div class="form-group"><label>Traffic Limit (GB)</label><input class="form-input" type="number" id="new-limit" placeholder="0 for Unlimited" min="0"></div>
+    <div class="form-group"><label>Max IPs (0=Unlimited)</label><input class="form-input" type="number" id="new-maxconn" placeholder="0 for Unlimited" min="0"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="withLoading(this, createLink)">Create Inbound</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-address-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <button class="modal-close" onclick="$('#add-address-modal').classList.remove('show')">×</button>
+    <h3>Add IPs/Domains</h3><br>
+    <textarea class="form-input" id="new-address" rows="5" placeholder="1.1.1.1&#10;www.bing.com"></textarea><br><br>
+    <button class="btn btn-primary" style="width:100%" onclick="withLoading(this, addAddresses)">Add All</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <button class="modal-close" onclick="$('#detail-modal').classList.remove('show')">×</button>
+    <h3>Details</h3><br>
+    <div id="detail-content" style="font-size:13px;line-height:1.8; word-break:break-all;"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+let allLinks=[], allAddresses=[], statsData={};
+
+function toggleSidebar() {
+    $('#sidebar').classList.toggle('open');
+    $('.sidebar-overlay').classList.toggle('show');
+}
+
+function toggleTheme(){
+    theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ren_theme', theme);
+}
+
+$$('.nav-item').forEach(el=>el.addEventListener('click',()=>{
+  $$('.page').forEach(p=>p.classList.remove('active'));
+  $(`#page-${el.dataset.page}`).classList.add('active');
+  $$('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  if(window.innerWidth <= 768) toggleSidebar(); // Close sidebar on mobile click
+}));
+
+function goToPage(page){
+  const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if(nav) nav.click();
+}
+
+function toast(msg, err=false){
+    const t = $('#toast');
+    t.innerHTML = (err ? '❌ ' : '✅ ') + msg;
+    t.className = 'toast ' + (err ? 'error' : '');
+    void t.offsetWidth; // force reflow for css animation restart
+    t.classList.add('show');
+    clearTimeout(t.timer);
+    t.timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function withLoading(btn, asyncFn) {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner"></div>';
+    btn.disabled = true;
+    try { await asyncFn(); }
+    catch(e) { console.error(e); }
+    finally { btn.innerHTML = originalHtml; btn.disabled = false; }
+}
+
+function fmtBytes(b){return b>1073741824?(b/1073741824).toFixed(2)+' GB':b>1048576?(b/1048576).toFixed(2)+' MB':(b/1024).toFixed(1)+' KB'}
+
+async function logout(){
+    await fetch('/api/logout',{method:'POST'});
+    location.href='/login';
+}
+
+async function checkAccount(){
+    try{
+        const r=await fetch('/api/me'); const d=await r.json();
+        if(d && d.must_change_password){
+            $('#pw-banner').classList.add('show');
+            goToPage('security');
+        } else {
+            $('#pw-banner').classList.remove('show');
+        }
+    }catch(e){}
+}
+
+async function loadStats(){
+    try{
+        const r=await fetch('/stats'); statsData=await r.json();
+
+        $('#s-traffic').style.opacity = 0; $('#s-links').style.opacity = 0;
+        setTimeout(()=>{
+            $('#s-traffic').textContent = statsData.total_traffic_mb+' MB';
+            $('#s-links').textContent = statsData.links_count;
+            $('#s-uptime').textContent = statsData.uptime;
+            $('#s-domain').textContent = statsData.domain || 'Not Set';
+            $('#s-traffic').style.opacity = 1; $('#s-links').style.opacity = 1;
+        }, 150);
+
+        updateChart();
+    }catch(e){}
+}
+
+async function loadLinks(){
+    try{
+        const r=await fetch('/api/links'); const d=await r.json(); allLinks=d.links;
+        $('#links-tbody').innerHTML = allLinks.map(l=>{
+            const u=l.used_bytes, lim=l.limit_bytes, pct=lim?Math.min(100,u/lim*100):0;
+            return `<tr>
+              <td>${l.label}</td>
+              <td>${fmtBytes(u)} / ${lim?fmtBytes(lim):'∞'} <div class="usage-bar"><div class="usage-fill" style="width:${pct}%"></div></div></td>
+              <td>${l.current_connections}/${l.max_connections||'∞'}</td>
+              <td>${l.active?'<span style="color:var(--green)">On</span>':'<span style="color:var(--red)">Off</span>'}</td>
+              <td>
+                <button class="btn btn-primary" onclick="showDetail('${l.uuid}')">Info</button>
+                <button class="btn btn-danger" onclick="deleteLink('${l.uuid}')">x</button>
+              </td>
+            </tr>`;
+        }).join('');
+    }catch(e){}
+}
+
+function showDetail(uid){
+    const l=allLinks.find(x=>x.uuid===uid);
+    $('#detail-content').innerHTML = `
+      <b>UUID:</b> ${l.uuid}<br><br>
+      <b>Connected IPs:</b> ${l.connected_ips && l.connected_ips.length ? l.connected_ips.join(', ') : 'None'}<br><br>
+      <b>VLESS Link:</b><br>
+      <textarea class="form-input" rows="4" readonly onclick="this.select();document.execCommand('copy');toast('Copied!')">${l.vless_link}</textarea><br><br>
+      <b>Sub URL:</b><br>
+      <textarea class="form-input" rows="2" readonly onclick="this.select();document.execCommand('copy');toast('Copied!')">https://${location.host}/sub/${l.uuid}</textarea>
+    `;
+    $('#detail-modal').classList.add('show');
+}
+
+async function createLink(){
+    const labelInput = $('#new-label');
+    const limitInput = $('#new-limit');
+    let valid = true;
+
+    if(!labelInput.value.trim()){ labelInput.classList.add('invalid'); valid=false; } else { labelInput.classList.remove('invalid'); }
+    if(limitInput.value < 0 || limitInput.value === ''){ limitInput.classList.add('invalid'); valid=false; } else { limitInput.classList.remove('invalid'); }
+
+    if(!valid) { toast('Please fill fields correctly', true); return; }
+
+    try{
+        const r=await fetch('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({label:labelInput.value, limit_value:limitInput.value, max_connections:$('#new-maxconn').value||0})});
+        if(!r.ok) throw new Error();
+        toast('Inbound Created Successfully!');
+        $('#add-modal').classList.remove('show');
+        labelInput.value=''; limitInput.value='';
+        loadLinks(); loadStats();
+    }catch(e){toast('Failed to create inbound',true)}
+}
+
+async function deleteLink(uid){
+    if(!confirm('Are you sure you want to delete this inbound?')) return;
+    await fetch(`/api/links/${uid}`,{method:'DELETE'});
+    toast('Inbound Deleted');
+    loadLinks(); loadStats();
+}
+
+async function loadAddresses(){
+    const r=await fetch('/api/addresses'); const d=await r.json();
+    $('#address-list').innerHTML = d.addresses.map((a,i)=>`
+      <div style="display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid var(--border); align-items:center;">
+        <span>${a}</span> <button class="btn btn-danger" onclick="deleteAddress(${i})">x</button>
+      </div>`).join('');
+}
+
+async function addAddresses(){
+    const lines = $('#new-address').value.split('\n').map(l=>l.trim()).filter(l=>l);
+    if(lines.length === 0) return toast('No addresses provided', true);
+    for(const a of lines) await fetch('/api/addresses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:a})});
+    $('#add-address-modal').classList.remove('show');
+    $('#new-address').value = '';
+    toast('Addresses added successfully');
+    loadAddresses();
+}
+async function deleteAddress(i){ await fetch(`/api/addresses/${i}`,{method:'DELETE'}); loadAddresses(); }
+
+async function saveDomain(){
+    const input = $('#domain-input');
+    await fetch('/api/domain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain:input.value})});
+    toast('Domain Saved'); loadStats(); loadLinks();
+}
+
+async function changePassword(){
+    const curr = $('#cur-pw'); const nw = $('#new-pw');
+    if(!curr.value || nw.value.length < 8) return toast('New password must be at least 8 characters', true);
+
+    const r=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({current_password:curr.value, new_password:nw.value})});
+    if(r.ok){ toast('Password Updated'); curr.value=''; nw.value=''; $('#pw-banner').classList.remove('show'); } else {
+        let msg='Incorrect Current Password';
+        try{const j=await r.json(); if(j.detail) msg=j.detail;}catch(_){}
+        toast(msg,true);
+    }
+}
+
+async function exportData() {
+    try {
+        const r = await fetch('/api/backup'); const d = await r.json();
+        const blob = new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ren_backup.json';
+        a.click(); toast('Backup Exported');
+    } catch(e) { toast('Export failed', true); }
+}
+
+async function importData(e) {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async(ev) => {
+        try {
+            const data = JSON.parse(ev.target.result);
+            const r = await fetch('/api/backup', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            if(r.ok) { toast('Backup Imported! Reloading...'); setTimeout(()=>location.reload(), 1000); }
+        } catch(err) { toast('Import Failed', true); }
+    };
+    reader.readAsText(file);
+}
+
+let chart;
+function updateChart(){
+    const ctx=$('#trafficChart'); if(!ctx)return;
+    const ht=statsData.hourly_traffic; if(!ht)return;
+    const sorted=Object.entries(ht).sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+
+    const labels = sorted.map(e=>e[0].split(' ')[1]);
+    const data = sorted.map(e=>Math.round(e[1]/1048576));
+
+    if(!chart) {
+        chart = new Chart(ctx,{
+            type:'bar',
+            data:{ labels: labels, datasets:[{ label:'Traffic', data: data, backgroundColor:'#dc2626', borderRadius: 4 }] },
+            options:{
+                responsive:true, maintainAspectRatio:false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return context.parsed.y + ' MB at ' + context.label; }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+    }
+}
+
+// Remove input validation red border on focus
+$$('.form-input').forEach(el => el.addEventListener('focus', () => el.classList.remove('invalid')));
+
+checkAccount();
+loadStats(); loadLinks(); loadAddresses();
+setInterval(loadStats, 10000);
+</script>
+</body>
+</html>

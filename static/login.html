@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REN</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html[data-theme="dark"]{--bg:#050508;--surface:rgba(20,20,20,0.85);--surface2:#1c1c1c;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.92);--text2:rgba(255,255,255,0.5);--text3:rgba(255,255,255,0.25);--primary:#dc2626;--primary-glow:rgba(220,38,38,0.15);--accent:#991b1b;--error:#ef4444;--error-bg:rgba(239,68,68,0.08);--orb1:rgba(220,38,38,0.12);--orb2:rgba(153,27,27,0.1);--orb3:rgba(239,68,68,0.06)}
+html[data-theme="light"]{--bg:#f8f9fa;--surface:rgba(255,255,255,0.9);--surface2:#f9fafb;--border:rgba(0,0,0,0.06);--text:rgba(0,0,0,0.88);--text2:rgba(0,0,0,0.5);--text3:rgba(0,0,0,0.25);--primary:#16a34a;--primary-glow:rgba(22,163,74,0.12);--accent:#15803d;--error:#dc2626;--error-bg:rgba(220,38,38,0.06);--orb1:rgba(22,163,74,0.1);--orb2:rgba(21,128,61,0.08);--orb3:rgba(34,197,94,0.05)}
+body{font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);transition:background .5s,color .5s;overflow:hidden}
+.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0;animation:orbFloat 20s ease-in-out infinite}
+.orb-1{width:400px;height:400px;background:var(--orb1);top:-10%;left:-5%;animation-delay:0s}
+.orb-2{width:350px;height:350px;background:var(--orb2);bottom:-10%;right:-5%;animation-delay:-7s}
+.orb-3{width:250px;height:250px;background:var(--orb3);top:40%;left:60%;animation-delay:-14s}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1);opacity:0.6}25%{transform:translate(60px,-40px) scale(1.1);opacity:0.8}50%{transform:translate(-30px,50px) scale(0.9);opacity:0.5}75%{transform:translate(40px,20px) scale(1.05);opacity:0.7}}
+.grid-bg{position:fixed;inset:0;z-index:0;opacity:0.03;background-image:linear-gradient(rgba(255,255,255,0.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.1) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+.toolbar{position:fixed;top:20px;right:20px;display:flex;gap:6px;z-index:10}
+.toolbar button{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .3s;backdrop-filter:blur(20px)}
+.toolbar button:hover{border-color:var(--primary);color:var(--primary);transform:scale(1.05)}
+.login-page{width:100%;max-width:380px;padding:0 20px;position:relative;z-index:1}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:48px 36px 36px;position:relative;overflow:hidden;backdrop-filter:blur(40px);box-shadow:0 8px 40px rgba(0,0,0,0.15),0 0 80px rgba(220,38,38,0.05);animation:cardIn .8s cubic-bezier(0.16,1,0.3,1) forwards;opacity:0;transform:translateY(30px) scale(0.96)}
+@keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
+.login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--primary),transparent);animation:shimmer 3s ease-in-out infinite}
+@keyframes shimmer{0%,100%{opacity:0.5;transform:scaleX(0.5)}50%{opacity:1;transform:scaleX(1)}}
+.brand{text-align:center;margin-bottom:36px}
+.brand svg{margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(220,38,38,0.3));animation:logoPulse 4s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 20px rgba(220,38,38,0.3));transform:scale(1)}50%{filter:drop-shadow(0 0 30px rgba(220,38,38,0.5));transform:scale(1.02)}}
+.brand h1{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-0.03em;animation:fadeUp .6s .2s ease both}
+.brand p{font-size:11px;color:var(--text3);margin-top:6px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;animation:fadeUp .6s .3s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.form-group{margin-bottom:20px;animation:fadeUp .6s .4s ease both}
+.form-group label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em}
+.form-group input{width:100%;padding:13px 16px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:all .3s}
+.form-group input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow),0 0 20px var(--primary-glow)}
+.login-btn{width:100%;padding:13px;background:var(--primary);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;animation:fadeUp .6s .5s ease both}
+.login-btn:hover{filter:brightness(1.15);transform:translateY(-2px);box-shadow:0 8px 25px rgba(220,38,38,0.35)}
+.error-msg{background:var(--error-bg);color:var(--error);padding:10px;border-radius:10px;font-size:13px;display:none;margin-bottom:20px;text-align:center;}
+.error-msg.show{display:block}
+</style>
+</head>
+<body>
+<div class="bg-canvas"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div></div>
+<div class="grid-bg"></div>
+<div class="toolbar">
+  <button id="lang-toggle" onclick="cycleLang()" title="Language">EN</button>
+  <button id="theme-toggle" onclick="toggleTheme()" title="Theme">💡</button>
+</div>
+<div class="login-page">
+  <div class="login-card" id="login-card">
+    <div class="brand">
+      <svg width="60" height="60" viewBox="0 0 56 56" fill="none"><rect width="56" height="56" rx="14" fill="#dc2626"/></svg>
+      <h1>REN</h1>
+      <p>v1.2 Security Update</p>
+    </div>
+    <div class="error-msg" id="err-box"></div>
+    <form id="login-form">
+      <div class="form-group">
+        <label data-en="Password" data-fa="رمز عبور">Password</label>
+        <input type="password" id="password" placeholder="Enter password" autofocus>
+      </div>
+      <button type="submit" class="login-btn" data-en="Sign In" data-fa="ورود">Sign In</button>
+    </form>
+  </div>
+</div>
+<script>
+let lang=localStorage.getItem('ren_lang')||'en';
+let theme=localStorage.getItem('ren_theme')||'dark';
+function setLang(l){lang=l;document.body.dir=l==='fa'?'rtl':'ltr';document.querySelectorAll('[data-en]').forEach(el=>{const v=el.getAttribute('data-'+l);if(v)el.textContent=v});document.getElementById('lang-toggle').textContent=l.toUpperCase();localStorage.setItem('ren_lang',l)}
+function cycleLang(){setLang(lang==='en'?'fa':'en')}
+function applyTheme(t){theme=t;document.documentElement.setAttribute('data-theme',t);localStorage.setItem('ren_theme',t)}
+function toggleTheme(){applyTheme(theme==='dark'?'light':'dark')}
+applyTheme(theme);setLang(lang);
+
+document.getElementById('login-form').addEventListener('submit',async e=>{
+  e.preventDefault();const err=document.getElementById('err-box');err.classList.remove('show');
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('password').value})});
+    if(!r.ok){
+      let msg='Invalid password';
+      try{const j=await r.json(); if(r.status===429) msg=j.detail||'Too many attempts. Try again later.';}catch(_){}
+      throw new Error(msg);
+    }
+    location.href='/dashboard';
+  }catch(e){err.textContent=e.message||'Invalid password';err.classList.add('show')}
+});
+</script>
+</body>
+</html>
