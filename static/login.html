@@ -2,89 +2,167 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>REN</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>REN — Secure Gateway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#070b10; --bg2:#0b1119; --panel:rgba(17,25,36,0.72); --panel-solid:#111924;
+  --line:rgba(255,255,255,0.07); --line2:rgba(255,255,255,0.12);
+  --txt:rgba(236,244,255,0.94); --txt2:rgba(160,178,199,0.72); --txt3:rgba(120,138,160,0.5);
+  --brand:#2dd4bf; --brand2:#10b981; --brand-ink:#04120f;
+  --glow:rgba(45,212,191,0.35); --glow-soft:rgba(45,212,191,0.12);
+  --danger:#fb7185; --danger-bg:rgba(251,113,133,0.1);
+  --radius:20px; --font:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+html[data-theme="light"]{
+  --bg:#eef2f6; --bg2:#e6ecf2; --panel:rgba(255,255,255,0.78); --panel-solid:#ffffff;
+  --line:rgba(15,30,50,0.08); --line2:rgba(15,30,50,0.14);
+  --txt:#0d1b2a; --txt2:#41556b; --txt3:#8598ac;
+  --brand:#0d9488; --brand2:#059669; --brand-ink:#ffffff;
+  --glow:rgba(13,148,136,0.25); --glow-soft:rgba(13,148,136,0.1);
+  --danger:#e11d48; --danger-bg:rgba(225,29,72,0.08);
+}
+html[lang="fa"] body{font-family:'Vazirmatn',var(--font)}
 *{margin:0;padding:0;box-sizing:border-box}
-html[data-theme="dark"]{--bg:#050508;--surface:rgba(20,20,20,0.85);--surface2:#1c1c1c;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.92);--text2:rgba(255,255,255,0.5);--text3:rgba(255,255,255,0.25);--primary:#dc2626;--primary-glow:rgba(220,38,38,0.15);--accent:#991b1b;--error:#ef4444;--error-bg:rgba(239,68,68,0.08);--orb1:rgba(220,38,38,0.12);--orb2:rgba(153,27,27,0.1);--orb3:rgba(239,68,68,0.06)}
-html[data-theme="light"]{--bg:#f8f9fa;--surface:rgba(255,255,255,0.9);--surface2:#f9fafb;--border:rgba(0,0,0,0.06);--text:rgba(0,0,0,0.88);--text2:rgba(0,0,0,0.5);--text3:rgba(0,0,0,0.25);--primary:#16a34a;--primary-glow:rgba(22,163,74,0.12);--accent:#15803d;--error:#dc2626;--error-bg:rgba(220,38,38,0.06);--orb1:rgba(22,163,74,0.1);--orb2:rgba(21,128,61,0.08);--orb3:rgba(34,197,94,0.05)}
-body{font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);transition:background .5s,color .5s;overflow:hidden}
-.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
-.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0;animation:orbFloat 20s ease-in-out infinite}
-.orb-1{width:400px;height:400px;background:var(--orb1);top:-10%;left:-5%;animation-delay:0s}
-.orb-2{width:350px;height:350px;background:var(--orb2);bottom:-10%;right:-5%;animation-delay:-7s}
-.orb-3{width:250px;height:250px;background:var(--orb3);top:40%;left:60%;animation-delay:-14s}
-@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1);opacity:0.6}25%{transform:translate(60px,-40px) scale(1.1);opacity:0.8}50%{transform:translate(-30px,50px) scale(0.9);opacity:0.5}75%{transform:translate(40px,20px) scale(1.05);opacity:0.7}}
-.grid-bg{position:fixed;inset:0;z-index:0;opacity:0.03;background-image:linear-gradient(rgba(255,255,255,0.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.1) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
-.toolbar{position:fixed;top:20px;right:20px;display:flex;gap:6px;z-index:10}
-.toolbar button{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .3s;backdrop-filter:blur(20px)}
-.toolbar button:hover{border-color:var(--primary);color:var(--primary);transform:scale(1.05)}
-.login-page{width:100%;max-width:380px;padding:0 20px;position:relative;z-index:1}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:48px 36px 36px;position:relative;overflow:hidden;backdrop-filter:blur(40px);box-shadow:0 8px 40px rgba(0,0,0,0.15),0 0 80px rgba(220,38,38,0.05);animation:cardIn .8s cubic-bezier(0.16,1,0.3,1) forwards;opacity:0;transform:translateY(30px) scale(0.96)}
-@keyframes cardIn{to{opacity:1;transform:translateY(0) scale(1)}}
-.login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--primary),transparent);animation:shimmer 3s ease-in-out infinite}
-@keyframes shimmer{0%,100%{opacity:0.5;transform:scaleX(0.5)}50%{opacity:1;transform:scaleX(1)}}
-.brand{text-align:center;margin-bottom:36px}
-.brand svg{margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(220,38,38,0.3));animation:logoPulse 4s ease-in-out infinite}
-@keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 20px rgba(220,38,38,0.3));transform:scale(1)}50%{filter:drop-shadow(0 0 30px rgba(220,38,38,0.5));transform:scale(1.02)}}
-.brand h1{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-0.03em;animation:fadeUp .6s .2s ease both}
-.brand p{font-size:11px;color:var(--text3);margin-top:6px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;animation:fadeUp .6s .3s ease both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.form-group{margin-bottom:20px;animation:fadeUp .6s .4s ease both}
-.form-group label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em}
-.form-group input{width:100%;padding:13px 16px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:all .3s}
-.form-group input:focus{border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow),0 0 20px var(--primary-glow)}
-.login-btn{width:100%;padding:13px;background:var(--primary);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;animation:fadeUp .6s .5s ease both}
-.login-btn:hover{filter:brightness(1.15);transform:translateY(-2px);box-shadow:0 8px 25px rgba(220,38,38,0.35)}
-.error-msg{background:var(--error-bg);color:var(--error);padding:10px;border-radius:10px;font-size:13px;display:none;margin-bottom:20px;text-align:center;}
-.error-msg.show{display:block}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:background .5s,color .3s;-webkit-font-smoothing:antialiased}
+/* ---------- Ambient signal field ---------- */
+.field{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;mix-blend-mode:screen;animation:drift 26s ease-in-out infinite}
+html[data-theme="light"] .aurora{mix-blend-mode:multiply;opacity:.4}
+.a1{width:52vw;height:52vw;background:radial-gradient(circle,var(--brand),transparent 62%);top:-16vw;left:-10vw}
+.a2{width:44vw;height:44vw;background:radial-gradient(circle,var(--brand2),transparent 62%);bottom:-18vw;right:-8vw;animation-delay:-9s}
+.a3{width:30vw;height:30vw;background:radial-gradient(circle,#6366f1,transparent 60%);top:38%;left:52%;animation-delay:-16s;opacity:.32}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(6vw,-4vw) scale(1.12)}66%{transform:translate(-5vw,5vw) scale(.92)}}
+.grid{position:fixed;inset:0;z-index:0;opacity:.5;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:52px 52px;mask-image:radial-gradient(ellipse 80% 70% at 50% 45%,#000 30%,transparent 78%)}
+.scan{position:fixed;left:0;right:0;height:2px;z-index:1;background:linear-gradient(90deg,transparent,var(--glow),transparent);opacity:.5;animation:scan 7s linear infinite}
+@keyframes scan{0%{top:-2%}100%{top:102%}}
+/* ---------- Toolbar ---------- */
+.toolbar{position:fixed;top:18px;inset-inline-end:18px;display:flex;gap:8px;z-index:20}
+.tool{width:40px;height:40px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;backdrop-filter:blur(16px);transition:.25s}
+.tool:hover{color:var(--brand);border-color:var(--brand);transform:translateY(-2px)}
+/* ---------- Card ---------- */
+.wrap{position:relative;z-index:5;width:100%;max-width:410px;padding:22px}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:42px 34px 34px;backdrop-filter:blur(30px) saturate(1.4);box-shadow:0 30px 80px -30px rgba(0,0,0,.7),0 0 0 1px var(--line) inset,0 0 60px -20px var(--glow-soft);animation:rise .8s cubic-bezier(.16,1,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+.card::before{content:"";position:absolute;inset:0;border-radius:var(--radius);padding:1px;background:linear-gradient(140deg,var(--brand),transparent 40%,transparent 70%,var(--brand2));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;pointer-events:none}
+.brand{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:30px}
+.mark{width:66px;height:66px;display:grid;place-items:center;margin-bottom:16px;position:relative}
+.mark svg{filter:drop-shadow(0 6px 18px var(--glow));animation:pulse 4.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 6px 18px var(--glow))}50%{filter:drop-shadow(0 6px 30px var(--glow))}}
+.brand h1{font-size:26px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(120deg,var(--txt),var(--brand));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.brand p{font-size:11px;color:var(--txt3);margin-top:7px;font-weight:600;letter-spacing:.22em;text-transform:uppercase}
+.field-group{margin-bottom:18px}
+.field-group label{display:block;font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:9px;letter-spacing:.08em;text-transform:uppercase}
+.input-shell{position:relative;display:flex;align-items:center}
+.input-shell input{width:100%;padding:14px 46px 14px 16px;background:rgba(0,0,0,.22);border:1.5px solid var(--line2);border-radius:13px;color:var(--txt);font-size:15px;font-family:var(--mono);letter-spacing:.04em;outline:none;transition:.25s}
+html[lang="fa"] .input-shell input{font-family:var(--font)}
+html[data-theme="light"] .input-shell input{background:rgba(255,255,255,.6)}
+.input-shell input::placeholder{color:var(--txt3);font-family:var(--font);letter-spacing:normal}
+.input-shell input:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--glow-soft),0 0 24px -6px var(--glow)}
+.reveal{position:absolute;inset-inline-end:8px;width:32px;height:32px;border:none;background:none;color:var(--txt3);cursor:pointer;border-radius:8px;display:grid;place-items:center;transition:.2s}
+.reveal:hover{color:var(--brand)}
+.btn{width:100%;padding:14px;margin-top:6px;border:none;border-radius:13px;background:linear-gradient(120deg,var(--brand),var(--brand2));color:var(--brand-ink);font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.02em;cursor:pointer;transition:.25s;display:flex;align-items:center;justify-content:center;gap:9px;position:relative;overflow:hidden}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 34px -12px var(--glow)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.7;cursor:progress;transform:none}
+.err{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;margin-bottom:18px;display:none;align-items:center;gap:9px}
+.err.show{display:flex;animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.foot{margin-top:22px;text-align:center;font-size:11px;color:var(--txt3);display:flex;align-items:center;justify-content:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--brand);box-shadow:0 0 10px var(--brand);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.spin{width:17px;height:17px;border:2px solid rgba(0,0,0,.25);border-top-color:currentColor;border-radius:50%;animation:rot .6s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+@media (max-width:480px){.card{padding:34px 24px 28px}.wrap{padding:14px}}
 </style>
 </head>
 <body>
-<div class="bg-canvas"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div></div>
-<div class="grid-bg"></div>
+<div class="field"><div class="aurora a1"></div><div class="aurora a2"></div><div class="aurora a3"></div></div>
+<div class="grid"></div>
+<div class="scan"></div>
+
 <div class="toolbar">
-  <button id="lang-toggle" onclick="cycleLang()" title="Language">EN</button>
-  <button id="theme-toggle" onclick="toggleTheme()" title="Theme">💡</button>
+  <button class="tool" id="langBtn" onclick="cycleLang()" title="Language">EN</button>
+  <button class="tool" id="themeBtn" onclick="toggleTheme()" title="Theme">◐</button>
 </div>
-<div class="login-page">
-  <div class="login-card" id="login-card">
+
+<div class="wrap">
+  <div class="card">
     <div class="brand">
-      <svg width="60" height="60" viewBox="0 0 56 56" fill="none"><rect width="56" height="56" rx="14" fill="#dc2626"/></svg>
-      <h1>REN</h1>
-      <p>v1.2 Security Update</p>
-    </div>
-    <div class="error-msg" id="err-box"></div>
-    <form id="login-form">
-      <div class="form-group">
-        <label data-en="Password" data-fa="رمز عبور">Password</label>
-        <input type="password" id="password" placeholder="Enter password" autofocus>
+      <div class="mark">
+        <svg width="60" height="60" viewBox="0 0 64 64" fill="none">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="64" y2="64">
+            <stop offset="0" stop-color="var(--brand)"/><stop offset="1" stop-color="var(--brand2)"/></linearGradient></defs>
+          <path d="M32 3l24 10v16c0 15-10 27-24 32C18 56 8 44 8 29V13L32 3z" fill="url(#g)" opacity=".16"/>
+          <path d="M32 3l24 10v16c0 15-10 27-24 32C18 56 8 44 8 29V13L32 3z" stroke="url(#g)" stroke-width="2.2"/>
+          <path d="M22 34c5-6 15-6 20 0M26 40c3.2-3.6 8.8-3.6 12 0" stroke="url(#g)" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <circle cx="32" cy="45" r="2.6" fill="var(--brand)"/>
+        </svg>
       </div>
-      <button type="submit" class="login-btn" data-en="Sign In" data-fa="ورود">Sign In</button>
+      <h1>REN</h1>
+      <p data-i18n="tag">Secure Tunnel Gateway</p>
+    </div>
+
+    <div class="err" id="err"><span>⚠</span><span id="errTxt"></span></div>
+
+    <form id="form" autocomplete="off">
+      <div class="field-group">
+        <label data-i18n="pw">Access Password</label>
+        <div class="input-shell">
+          <input type="password" id="pw" data-i18n-ph="pwph" placeholder="Enter your password" autocomplete="current-password" autofocus>
+          <button type="button" class="reveal" id="reveal" onclick="toggleReveal()" title="Show / hide" aria-label="Show password">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn" id="submit"><span id="btnTxt" data-i18n="signin">Sign In</span></button>
     </form>
+
+    <div class="foot"><span class="dot"></span><span data-i18n="foot">Encrypted · Self-hosted · Yours</span></div>
   </div>
 </div>
+
 <script>
+const I18N={
+  en:{tag:"Secure Tunnel Gateway",pw:"Access Password",pwph:"Enter your password",signin:"Sign In",foot:"Encrypted · Self-hosted · Yours",bad:"Invalid password",rate:"Too many attempts. Please wait and try again.",net:"Connection error. Try again."},
+  fa:{tag:"دروازهٔ امن تونل",pw:"رمز عبور",pwph:"رمز عبور خود را وارد کنید",signin:"ورود",foot:"رمزنگاری‌شده · میزبانی شخصی · متعلق به شما",bad:"رمز عبور نادرست است",rate:"تلاش‌های بیش از حد. کمی صبر کنید و دوباره امتحان کنید.",net:"خطای اتصال. دوباره تلاش کنید."}
+};
 let lang=localStorage.getItem('ren_lang')||'en';
 let theme=localStorage.getItem('ren_theme')||'dark';
-function setLang(l){lang=l;document.body.dir=l==='fa'?'rtl':'ltr';document.querySelectorAll('[data-en]').forEach(el=>{const v=el.getAttribute('data-'+l);if(v)el.textContent=v});document.getElementById('lang-toggle').textContent=l.toUpperCase();localStorage.setItem('ren_lang',l)}
-function cycleLang(){setLang(lang==='en'?'fa':'en')}
-function applyTheme(t){theme=t;document.documentElement.setAttribute('data-theme',t);localStorage.setItem('ren_theme',t)}
+function applyLang(l){lang=l;const t=I18N[l];
+  document.documentElement.lang=l;document.body.dir=(l==='fa')?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(e=>{const v=t[e.dataset.i18n];if(v)e.textContent=v});
+  document.querySelectorAll('[data-i18n-ph]').forEach(e=>{const v=t[e.dataset.i18nPh];if(v)e.placeholder=v});
+  document.getElementById('langBtn').textContent=l.toUpperCase();localStorage.setItem('ren_lang',l)}
+function cycleLang(){applyLang(lang==='en'?'fa':'en')}
+function applyTheme(t){theme=t;document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('themeBtn').textContent=t==='dark'?'◐':'☀';localStorage.setItem('ren_theme',t)}
 function toggleTheme(){applyTheme(theme==='dark'?'light':'dark')}
-applyTheme(theme);setLang(lang);
+function toggleReveal(){const i=document.getElementById('pw');i.type=i.type==='password'?'text':'password'}
+applyTheme(theme);applyLang(lang);
 
-document.getElementById('login-form').addEventListener('submit',async e=>{
-  e.preventDefault();const err=document.getElementById('err-box');err.classList.remove('show');
+const form=document.getElementById('form'),err=document.getElementById('err'),errTxt=document.getElementById('errTxt'),
+      submit=document.getElementById('submit'),btnTxt=document.getElementById('btnTxt');
+function showErr(msg){errTxt.textContent=msg;err.classList.add('show')}
+form.addEventListener('submit',async e=>{
+  e.preventDefault();err.classList.remove('show');
+  const t=I18N[lang];
+  submit.disabled=true;const orig=btnTxt.textContent;btnTxt.innerHTML='<span class="spin"></span>';
   try{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('password').value})});
-    if(!r.ok){
-      let msg='Invalid password';
-      try{const j=await r.json(); if(r.status===429) msg=j.detail||'Too many attempts. Try again later.';}catch(_){}
-      throw new Error(msg);
-    }
-    location.href='/dashboard';
-  }catch(e){err.textContent=e.message||'Invalid password';err.classList.add('show')}
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});
+    if(r.ok){location.href='/dashboard';return}
+    let msg=t.bad;
+    try{const j=await r.json();if(r.status===429)msg=j.detail||t.rate;}catch(_){}
+    showErr(msg);
+  }catch(_){showErr(t.net)}
+  finally{submit.disabled=false;btnTxt.textContent=orig}
 });
 </script>
 </body>
